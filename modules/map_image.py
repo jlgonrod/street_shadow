@@ -3,7 +3,7 @@ import re
 from PIL import Image
 import io
 import numpy as np
-from .coordinates import convert_coordinates_arrays
+from .coordinates import convert_coordinates_arrays, get_square_coords_from_coords
 
 def get_min_max_coords(lon1, lat1, lon2, lat2):
     """
@@ -123,55 +123,28 @@ def parse_image_map(image):
     img = Image.open(io.BytesIO(image))
     return img
 
-def get_square_coords_from_coords(coords_rectangle):
-    """
-    This function returns the coordinates of a square that contains a rectangle defined by two points.
-    """
 
-    x1 = coords_rectangle[0][0]
-    y1 = coords_rectangle[0][1]
-
-    x2 = coords_rectangle[1][0]
-    y2 = coords_rectangle[1][1]
-
-    # Get que center of the square
-    x_center = (x1 + x2) / 2
-    y_center = (y1 + y2) / 2
-
-    # Get the maximun width or height
-    long = max(abs(x1 - x2), abs(y1 - y2))
-
-    # Get the new coordinates
-    x1 = x_center - long / 2
-    y1 = y_center - long / 2
-
-    x2 = x_center + long / 2
-    y2 = y_center + long / 2
-
-    return np.array([[x1, y1], [x2, y2]])
-
-def plot_image_from_coords(coords_gml, pad=0):
+def get_image_from_coords(coords_gml):
     """
     This function plots a static image from Mapbox API based on a list of coordinates
-    obtained from a GML file.
+    obtained from a GML file and saves the image in a file.
 
     Parameters
     ----------
     coords_gml : list
         A list of coordinates obtained from a GML file in  EPSG:25829
         The list should be in the form [[lon1, lat1], [lon2, lat2], ...]
-    pad : float
-        The padding to add to the bounding box in meters
+
+    Returns
+    -------
+    save_path : str
+        The path to the saved image
     """
     # Convert the coordinates to an array and get the minimum and maximum coordinates
     coords_array = np.array(coords_gml)
 
     min_coords = np.min(coords_array, axis=0)
     max_coords = np.max(coords_array, axis=0)
-
-    # Add the padding
-    min_coords -= pad
-    max_coords += pad
     
     coords_min_max = np.array([min_coords, max_coords])
 
@@ -181,12 +154,12 @@ def plot_image_from_coords(coords_gml, pad=0):
     # Reorder from [[lon, lat]] to [[lat, lon]]
     coords_min_max = np.array([[coords_min_max[0][1], coords_min_max[0][0]], [coords_min_max[1][1], coords_min_max[1][0]]])
 
-    # Get the coordinates of a square that contains the building
-    coords_min_max = get_square_coords_from_coords(coords_min_max)
-
     # Get the image from the Mapbox API
     map_img = get_image_map(coords_min_max[0][0], coords_min_max[0][1], coords_min_max[1][0], coords_min_max[1][1])
     img = parse_image_map(map_img)
 
-    # Show the image
-    img.show()
+    # Save the image in a temporary file
+    save_path = "./data/temp/map_image.png"
+    img.save(save_path)
+
+    return save_path
