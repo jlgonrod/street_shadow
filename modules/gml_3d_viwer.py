@@ -1,15 +1,20 @@
 import xml.etree.ElementTree as ET
 import pyvista as pv
 import numpy as np
-from .map_image import get_image_from_coords
+from .map_image import draw_base_map
 from .coordinates import get_square_coords_from_coords
 import os
 
-def gml_3d_from_file(gml_file_path):
+def gml_3d_from_file(gml_file_path, texture_map=True):
     """
     Processes a GML file and generates 3D models of buildings.
 
-    :param gml_file_path: Path to the GML file
+    Parameters
+    ----------
+    gml_file_path : str
+        Path to the GML file.
+    texture_map : bool, optional
+        Whether to add a texture map to the base plane, by default True.
     """
     try:
         # Load the GML file
@@ -73,36 +78,11 @@ def gml_3d_from_file(gml_file_path):
         if buildings_3d:
             plotter = pv.Plotter()
             
-            # Get the coordinates from the bounding box
-            min_x, min_y = np.min(all_coords, axis=0)
-            max_x, max_y = np.max(all_coords, axis=0)
-
-            coords_min_max = np.array([[min_x, min_y], [max_x, max_y]])
-
-            coords_min_max = get_square_coords_from_coords(coords_min_max)
-
-            pad = 30 # meters
-            coords_min_max[0] -= pad
-            coords_min_max[1] += pad
-
-            # Get the image from the Mapbox API
-            map_img_path = get_image_from_coords(coords_min_max)
-
-            base_plane = pv.Plane(
-                center=(np.mean(coords_min_max[:, 0]), np.mean(coords_min_max[:, 1]), 0),
-                i_size=abs(coords_min_max[0, 0] - coords_min_max[1, 0]),
-                j_size=abs(coords_min_max[0, 1] - coords_min_max[1, 1]),
-            )
-            base_plane.texture_map_to_plane(inplace=True)
-            
-            texture = pv.read_texture(map_img_path)
-            # Remove the temp file
-            os.remove(map_img_path)
-
-            plotter.add_mesh(base_plane, texture=texture)
-
-            min_x, min_y = np.min(all_coords, axis=0)
-            max_x, max_y = np.max(all_coords, axis=0)
+            # Add the base map
+            if texture_map:
+                pad=30
+                base_plane, texture = draw_base_map(all_coords, pad)
+                plotter.add_mesh(base_plane, texture=texture)
             
             # Generate the 3d extrusion
             for mesh in buildings_3d:

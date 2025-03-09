@@ -1,4 +1,5 @@
 from modules.gml_3d_viwer import gml_3d_from_file
 
-GML_FILE_PATH = "./data/gml/buildings/Building_2660202UF7626S.gml"
-gml_3d_from_file(GML_FILE_PATH)
+ref = "3526101TG3432N"
+GML_FILE_PATH = f"./data/gml/buildings/Building_{ref}.gml"
+gml_3d_from_file(GML_FILE_PATH, texture_map=False)

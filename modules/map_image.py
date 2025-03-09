@@ -1,6 +1,8 @@
 import requests
 import re
+import os
 from PIL import Image
+import pyvista as pv
 import io
 import numpy as np
 from .coordinates import convert_coordinates_arrays, get_square_coords_from_coords
@@ -123,7 +125,6 @@ def parse_image_map(image):
     img = Image.open(io.BytesIO(image))
     return img
 
-
 def get_image_from_coords(coords_gml):
     """
     This function plots a static image from Mapbox API based on a list of coordinates
@@ -163,3 +164,59 @@ def get_image_from_coords(coords_gml):
     img.save(save_path)
 
     return save_path
+
+def draw_base_map(list_coords, pad=0):
+    """
+    This function creates a base plane that will be used to contain the image
+    and loads the image as a texture.
+
+    Parameters
+    ----------
+    list_coords : list
+        A list of coordinates that define a polygon in EPSG:25829
+        with the form [[lon1, lat1], [lon2, lat2], ...]
+
+    pad : float, optional
+        Padding to add to the bounding box, by default 0.
+
+    Returns
+    -------
+    base_plane : pyvista.PolyData
+        The base plane
+    texture : pyvista.Texture
+        The texture of the map
+    """
+    
+    # Get the coordinates from the bounding box
+    min_x, min_y = np.min(list_coords, axis=0)
+    max_x, max_y = np.max(list_coords, axis=0)
+
+    coords_min_max = np.array([[min_x, min_y], [max_x, max_y]])
+
+    # Add padding to the bounding box
+    coords_min_max[0] -= pad
+    coords_min_max[1] += pad
+
+    # The coordinates need to define a square because the image provided 
+    # by Mapbox API is a square
+    coords_min_max = get_square_coords_from_coords(coords_min_max)
+
+    # Create the base plane that will be used to contain the image
+    base_plane = pv.Plane(
+        center=(np.mean(coords_min_max[:, 0]), np.mean(coords_min_max[:, 1]), 0),
+        i_size=abs(coords_min_max[0, 0] - coords_min_max[1, 0]),
+        j_size=abs(coords_min_max[0, 1] - coords_min_max[1, 1]),
+    )
+    
+    base_plane.texture_map_to_plane(inplace=True)
+
+    # Get the image from the Mapbox API and save it in the temporary path
+    map_img_path = get_image_from_coords(coords_min_max)
+
+    # Load the image as a texture
+    texture = pv.read_texture(map_img_path)
+
+    # Remove the temporary file
+    os.remove(map_img_path)
+
+    return base_plane, texture
