@@ -203,7 +203,7 @@ def draw_base_map(list_coords, pad=0):
 
     # Create the base plane that will be used to contain the image
     base_plane = pv.Plane(
-        center=(np.mean(coords_min_max[:, 0]), np.mean(coords_min_max[:, 1]), 0),
+        center=(np.mean(coords_min_max[:, 0]), np.mean(coords_min_max[:, 1]), -0.2), #-0.1 to avoid shadows overlapping
         i_size=abs(coords_min_max[0, 0] - coords_min_max[1, 0]),
         j_size=abs(coords_min_max[0, 1] - coords_min_max[1, 1]),
     )

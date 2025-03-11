@@ -2,19 +2,68 @@ import xml.etree.ElementTree as ET
 import pyvista as pv
 import numpy as np
 from .map_image import draw_base_map
-from .coordinates import get_square_coords_from_coords
-import os
 
-def gml_3d_from_file(gml_file_path, texture_map=True):
+def project_mesh_onto_z0(mesh: pv.PolyData, direction: np.ndarray) -> pv.PolyData:
     """
-    Processes a GML file and generates 3D models of buildings.
+    Proyecta la malla 'mesh' sobre el plano z=0 usando la 'direction' dada.
+    
+    Parámetros
+    ----------
+    mesh : pv.PolyData
+        Malla a proyectar (superficie).
+    direction : np.ndarray
+        Vector de dirección (dx, dy, dz) para la proyección.
+    
+    Retorna
+    -------
+    shadow_mesh : pv.PolyData
+        Nueva malla proyectada en z=0 con la misma conectividad.
+    
+    Lanza
+    -----
+    ValueError
+        Si direction[2] == 0, pues no hay intersección con z=0.
+    """
+    if direction[2] == 0:
+        raise ValueError("El componente z del vector de proyección es cero. "
+                         "No puede proyectarse sobre z=0.")
+    
+    original_points = mesh.points.copy()
+    shadow_points = []
 
-    Parameters
+    for p in original_points:
+        # Ecuación: p + t * direction
+        # Queremos z=0 => p.z + t*dz = 0 => t = -p.z/dz
+        t = -p[2] / direction[2]
+        p_proj = p + t * direction
+        shadow_points.append(p_proj)
+
+    shadow_points = np.array(shadow_points)
+
+    # Construimos la nueva malla con la misma conectividad (mesh.faces)
+    shadow_mesh = pv.PolyData(shadow_points, mesh.faces)
+
+    return shadow_mesh
+
+
+def gml_3d_from_file(gml_file_path, texture_map=True, projection_direction=None):
+    """
+    Processes a GML file and generates 3D models of buildings, opcionalmente
+    proyectando una "sombra" de cada edificio sobre el plano z=0.
+
+    - Fusiona todas las edificaciones en una sola malla 3D
+    - (Opcional) Proyecta y unifica la sombra para no ver patches sobrepuestos
+
+    Parámetros
     ----------
     gml_file_path : str
         Path to the GML file.
-    texture_map : bool, optional
-        Whether to add a texture map to the base plane, by default True.
+    texture_map : bool, opcional
+        Whether to add a texture map to the base plane. Por defecto True.
+    projection_direction : np.ndarray, opcional
+        Vector de proyección para calcular la sombra sobre z=0.
+        Ejemplo: np.array([0,0,-1]).
+        Por defecto None (no se proyecta).
     """
     try:
         # Load the GML file
@@ -27,70 +76,102 @@ def gml_3d_from_file(gml_file_path, texture_map=True):
             "bu-ext2d": "http://inspire.jrc.ec.europa.eu/schemas/bu-ext2d/2.0"
         }
 
-        # List to store 3D models of buildings
+        # Lista para almacenar las mallas 3D de cada edificio
         buildings_3d = []
-        # List to store building coordinates
+        # Lista para almacenar coordenadas 2D (para dibujar la textura base)
         all_coords = []
 
         for building in root.findall(".//bu-ext2d:BuildingPart", ns):
-            # Get the number of floors above ground
+            # Nº de pisos sobre el suelo
             floors_above_element = building.find(".//bu-ext2d:numberOfFloorsAboveGround", ns)
             num_floors_above = int(floors_above_element.text) if floors_above_element is not None else 0
 
-            # If there are no floors above ground, ignore this part of the building
             if num_floors_above == 0:
+                # Sin pisos sobre el suelo, no lo extruimos
                 continue
 
-            # Define height
-            height_above = num_floors_above * 3  # 3m per floor
-            base_z = 0  # Base at ground level
-            total_height = height_above  
+            # Altura total (3 m por piso, ajusta según tus datos)
+            total_height = num_floors_above * 3
+            base_z = 0
 
-            # Get the base geometry (2D) and extrude it to 3D
+            # Obtener la geometría base (2D) y extruir
             for poslist in building.findall(".//gml:posList", ns):
                 if poslist.text:
                     coords_text = poslist.text.strip()
-                    coords_2d = np.array([list(map(float, coords_text.split()[i:i+2])) for i in range(0, len(coords_text.split()), 2)])
+                    coords_2d = np.array([
+                        list(map(float, coords_text.split()[i:i+2]))
+                        for i in range(0, len(coords_text.split()), 2)
+                    ])
 
-                    # Store coordinates to calculate the bounding box
+                    # Acumular coords para el bounding box de la base (textura)
                     all_coords.extend(coords_2d)
 
-                    # Ensure the polygon is closed
+                    # Asegurar que el polígono está cerrado
                     if not np.array_equal(coords_2d[0], coords_2d[-1]):
                         coords_2d = np.vstack([coords_2d, coords_2d[0]])
                     
-                    # Convert 2D coordinates to 3D by adding the correct base Z
-                    coords_3d = np.hstack([coords_2d, np.full((coords_2d.shape[0], 1), base_z*0.1)])
-                    
-                    # Create a closed mesh object
+                    # Generar coords en 3D (z = base_z)
+                    coords_3d = np.hstack([
+                        coords_2d,
+                        np.full((coords_2d.shape[0], 1), base_z)
+                    ])
+
+                    # Crear una malla de polígono base
                     faces = [[len(coords_3d)] + list(range(len(coords_3d)))]
                     polydata = pv.PolyData(coords_3d, faces)
-                    
-                    # Triangulate the polygon to handle complex polygons
+
+                    # Triangular la base
                     polydata = polydata.triangulate()
-                    
-                    # Extrude the polygon in height ensuring it is a closed solid
+
+                    # Extruir con capping=True (cierra tapa superior)
                     extruded = polydata.extrude((0, 0, total_height), capping=True)
-                    
+
+                    # Extraer superficie completa y triangular
+                    # para que sea un sólido cerrado en malla superficial
+                    extruded = extruded.extract_surface().triangulate()
+
                     buildings_3d.append(extruded)
 
-        # If models are generated, visualize them
+        # Si hay edificios, unificamos para proyección y conectividad
         if buildings_3d:
+            combined_mesh = buildings_3d[0].copy()
+            for bld in buildings_3d[1:]:
+                combined_mesh = combined_mesh.merge(bld)
+
+            # Visualización
             plotter = pv.Plotter()
-            
-            # Add the base map
+
+            # Añadir plano base con textura (opcional)
             if texture_map:
-                pad=30
+                pad = 30
                 base_plane, texture = draw_base_map(all_coords, pad)
                 plotter.add_mesh(base_plane, texture=texture)
-            
-            # Generate the 3d extrusion
-            for mesh in buildings_3d:
-                plotter.add_mesh(mesh, color="lightblue", opacity=1, show_edges=False)
+
+            # Añadimos la malla de todos los edificios unificada
+            plotter.add_mesh(
+                combined_mesh,
+                color="lightblue", opacity=1, show_edges=False,
+                label="Edificios unificados"
+            )
+
+            # Si se proporcionó vector para proyección, generamos sombra
+            if projection_direction is not None:
+                shadow_mesh = project_mesh_onto_z0(combined_mesh, projection_direction)
+                
+                # "Limpiamos" para unificar posibles solapes de la malla
+                shadow_mesh = shadow_mesh.triangulate().clean()
+
+                # Añadir la sombra
+                plotter.add_mesh(
+                    shadow_mesh,
+                    color="gray", opacity=0.8, show_edges=False,
+                    label="Sombra proyectada"
+                )
 
             plotter.show_grid()
             plotter.view_isometric()
             plotter.show()
+
         else:
             print("No 3D models were generated.")
 
