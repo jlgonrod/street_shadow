@@ -185,6 +185,8 @@ def draw_base_map(list_coords, pad=0):
         The base plane
     texture : pyvista.Texture
         The texture of the map
+    center : np.array
+        The center of the bounding box
     """
     
     # Get the coordinates from the bounding box
@@ -201,9 +203,12 @@ def draw_base_map(list_coords, pad=0):
     # by Mapbox API is a square
     coords_min_max = get_square_coords_from_coords(coords_min_max)
 
+    # Get the center of the bounding box
+    center = np.mean(coords_min_max, axis=0)
+
     # Create the base plane that will be used to contain the image
     base_plane = pv.Plane(
-        center=(np.mean(coords_min_max[:, 0]), np.mean(coords_min_max[:, 1]), -0.2), #-0.1 to avoid shadows overlapping
+        center=(center[0], center[1], -0.2), #-0.1 to avoid shadows overlapping
         i_size=abs(coords_min_max[0, 0] - coords_min_max[1, 0]),
         j_size=abs(coords_min_max[0, 1] - coords_min_max[1, 1]),
     )
@@ -219,4 +224,4 @@ def draw_base_map(list_coords, pad=0):
     # Remove the temporary file
     os.remove(map_img_path)
 
-    return base_plane, texture
+    return base_plane, texture, center
