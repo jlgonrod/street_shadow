@@ -17,4 +17,4 @@ dt_sample = pd_Timestamp(
     tz=ZoneInfo('Europe/Madrid') # It cares about the change of hour in summer and winter in Spain
 )
 
-gml_3d_from_file(GML_FILE_PATH,dt=dt_sample, texture_map=False)
+gml_3d_from_file(GML_FILE_PATH,dt=dt_sample, texture_map=True)

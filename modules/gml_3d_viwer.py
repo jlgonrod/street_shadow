@@ -243,6 +243,10 @@ def gml_3d_from_file(gml_file_path, dt, texture_map=True):
                     label="Sombra proyectada"
                 )
 
+            # Add datetime information as text (if provided)
+            if dt:
+                plotter.add_text(f"Date and Time: {dt}", position='upper_left', font_size=10, color='black')
+
             # Configure the plotter
             plotter.show_grid()
             plotter.view_isometric()
