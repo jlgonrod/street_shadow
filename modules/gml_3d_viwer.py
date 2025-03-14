@@ -1,8 +1,69 @@
 import xml.etree.ElementTree as ET
 import pyvista as pv
 import numpy as np
+from shapely.geometry import Polygon
+from shapely.ops import unary_union
+
+
 from .map_image import draw_base_map
 from .sun import get_sulight_vector
+
+def unify_shadow_mesh(shadow_mesh: pv.PolyData) -> pv.PolyData:
+    """
+    Combina todas las caras solapadas en shadow_mesh en un único polígono.
+
+    Parámetros
+    ----------
+    shadow_mesh : pv.PolyData
+        Malla con caras posiblemente solapadas.
+
+    Retorna
+    -------
+    pv.PolyData
+        Malla limpia, unificada y sin solapamientos.
+    """
+
+    # Extraer polígonos de la malla de sombra
+    faces = shadow_mesh.faces.reshape(-1, 4)[:, 1:]  # Extraer solo índices de vértices
+    points = shadow_mesh.points[:, :2]  # Sólo coordenadas XY (planas)
+
+    polygons = []
+    for face in faces:
+        polygon_coords = points[face]
+        poly = Polygon(polygon_coords)
+        if poly.is_valid and poly.area > 0:
+            polygons.append(poly)
+
+    # Unión de polígonos para eliminar solapamientos
+    unified_poly = unary_union(polygons)
+
+    # Puede haber multipolígonos, manejar esta posibilidad:
+    if unified_poly.geom_type == 'MultiPolygon':
+        all_coords, all_faces = [], []
+        face_offset = 0
+        for poly in unified_poly.geoms:
+            x, y = poly.exterior.coords.xy
+            coords_2d = np.column_stack((x, y))
+            coords_3d = np.hstack((coords_2d, np.zeros((len(coords_2d), 1))))
+            faces_poly = [[len(coords_3d)] + list(range(face_offset, face_offset + len(coords_3d)))]
+            face_offset += len(coords_3d)
+
+            all_coords.extend(coords_3d)
+            all_faces.extend(faces_poly)
+    else:
+        x, y = unified_poly.exterior.coords.xy
+        coords_2d = np.column_stack((x, y))
+        coords_3d = np.hstack((coords_2d, np.zeros((len(coords_2d), 1))))
+        all_coords = coords_3d
+        all_faces = [[len(coords_3d)] + list(range(len(coords_3d)))]
+
+    # Reconstruir la malla
+    unified_shadow_mesh = pv.PolyData(np.array(all_coords), np.hstack(all_faces))
+
+    # Opcionalmente triangula para garantizar simplicidad
+    unified_shadow_mesh = unified_shadow_mesh.triangulate().clean()
+
+    return unified_shadow_mesh
 
 def project_mesh_onto_z0(mesh: pv.PolyData, direction: np.ndarray) -> pv.PolyData:
     """
@@ -43,6 +104,9 @@ def project_mesh_onto_z0(mesh: pv.PolyData, direction: np.ndarray) -> pv.PolyDat
 
     # Construimos la nueva malla con la misma conectividad (mesh.faces)
     shadow_mesh = pv.PolyData(shadow_points, mesh.faces)
+
+    # Combinamos las sombras solapadas
+    shadow_mesh = unify_shadow_mesh(shadow_mesh)
 
     return shadow_mesh
 
