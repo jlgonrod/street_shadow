@@ -40,10 +40,16 @@ def light_angles2vec(azimuth_ang, zenith_angle):
     """
     azimuth = np.radians(azimuth_ang)
     zenith = np.radians(zenith_angle)
-    x = - np.sin(zenith) * np.sin(azimuth)
-    y = - np.sin(zenith) * np.cos(azimuth)
-    z = - np.cos(zenith)
-    return np.array([x, y, z])
+    sin_zenith = np.sin(zenith)
+    cos_zenith = np.cos(zenith)
+    sin_azimuth = np.sin(azimuth)
+    cos_azimuth = np.cos(azimuth)
+    
+    x = -sin_zenith * sin_azimuth
+    y = -sin_zenith * cos_azimuth
+    z = -cos_zenith
+    
+    return np.round(np.array([x, y, z]), 3)
 
 def get_sulight_vector(x, y, dt):
     """
