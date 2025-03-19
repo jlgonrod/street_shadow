@@ -1,88 +1,18 @@
 import pyvista as pv
-from shapely.ops import unary_union
 from shapely.geometry import Polygon, MultiPolygon, mapping
 import numpy as np
 import json
+from shapely.ops import unary_union
+from shapely.validation import make_valid
+import geopandas as gpd
+
 
 from .coordinates import convert_multipolygon_coordinates_25829_to_4326 
 
-def unify_shadow_mesh(shadow_mesh: pv.PolyData) -> pv.PolyData:
-    """
-    Combines all overlapping faces in shadow_mesh into a single polygon.
-    Then triangulates and cleans it.
-
-    Parameters
-    ----------
-    shadow_mesh : pv.PolyData
-        Mesh with possibly overlapping faces.
-
-    Returns
-    -------
-    pv.PolyData
-        Clean, unified mesh without overlaps.
-    """
-    # Extract polygons from the shadow mesh
-    faces = shadow_mesh.faces.reshape(-1, 4)[:, 1:]  # take vertex indices
-    points = shadow_mesh.points[:, :2]  # only XY coordinates (flat at z=0)
-
-    polygons = []
-    for face in faces:
-        polygon_coords = points[face]
-        poly = Polygon(polygon_coords)
-        if poly.is_valid and poly.area > 0:
-            polygons.append(poly)
-
-    # Union of all polygons to eliminate overlaps
-    unified_poly = unary_union(polygons)
-
-    # Generate a PolyData from the union
-    if unified_poly.is_empty:
-        # Case where there is no shadow
-        return pv.PolyData()
-
-    if unified_poly.geom_type == 'MultiPolygon':
-        all_coords = []
-        all_faces = []
-        face_offset = 0
-        for poly in unified_poly.geoms:
-            x, y = poly.exterior.coords.xy
-            coords_2d = np.column_stack((x, y))
-            coords_3d = np.hstack((coords_2d, np.zeros((len(coords_2d), 1))))
-            n_pts = len(coords_3d)
-            faces_poly = [n_pts] + list(range(face_offset, face_offset + n_pts))
-            all_coords.append(coords_3d)
-            all_faces.extend(faces_poly)
-            face_offset += n_pts
-        all_coords = np.vstack(all_coords)
-        all_faces = np.array(all_faces, dtype=np.int32)
-    else:
-        # Simple polygon case
-        x, y = unified_poly.exterior.coords.xy
-        coords_2d = np.column_stack((x, y))
-        coords_3d = np.hstack((coords_2d, np.zeros((len(coords_2d), 1))))
-        n_pts = len(coords_3d)
-        all_coords = coords_3d
-        all_faces = np.array([n_pts] + list(range(n_pts)), dtype=np.int32)
-
-    # Build the resulting mesh
-    unified_shadow_mesh = pv.PolyData(all_coords, all_faces)
-    unified_shadow_mesh = unified_shadow_mesh.triangulate().clean()
-    return unified_shadow_mesh
-
 def polydata_to_shapely(poly: pv.PolyData) -> MultiPolygon:
     """
-    Converts a pv.PolyData (2D at z=0) to a Shapely MultiPolygon.
-    Takes the faces and points and unifies them.
-
-    Parameters
-    ----------
-    poly : pv.PolyData
-        2D mesh (at z=0) to be converted.
-
-    Returns
-    -------
-    MultiPolygon
-        Resulting polygon or multipolygon.
+    Convierte un pv.PolyData (2D en z=0) a un Shapely MultiPolygon.
+    Se extraen los polígonos sin unirlos.
     """
     if poly.n_cells < 1:
         return MultiPolygon()
@@ -100,27 +30,17 @@ def polydata_to_shapely(poly: pv.PolyData) -> MultiPolygon:
     if not polygons:
         return MultiPolygon()
 
-    return unary_union(polygons)  # This can return Polygon or MultiPolygon
+    # Se retornan los polígonos sin unir.
+    return MultiPolygon(polygons)
 
 def shapely_to_polydata(shp_geom) -> pv.PolyData:
     """
-    Converts a Shapely polygon or multipolygon to a PyVista PolyData.
-    Assumes z=0 for all geometry.
-
-    Parameters
-    ----------
-    shp_geom : shapely.geometry.BaseGeometry
-        Shapely polygon or multipolygon.
-
-    Returns
-    -------
-    pv.PolyData
-        Corresponding triangulated and clean mesh.
+    Convierte una geometría Shapely (Polygon o MultiPolygon) a un pv.PolyData.
+    Se asume z=0 para toda la geometría.
     """
     if shp_geom.is_empty:
         return pv.PolyData()
 
-    # Ensure it is MultiPolygon
     if shp_geom.geom_type == 'Polygon':
         shp_geom = MultiPolygon([shp_geom])
 
@@ -140,9 +60,6 @@ def shapely_to_polydata(shp_geom) -> pv.PolyData:
         all_coords.append(coords_3d)
         all_faces.extend(face)
 
-        # If the polygon has holes, they could be handled separately
-        # by adding additional faces, if necessary.
-
     all_coords = np.vstack(all_coords)
     all_faces = np.array(all_faces, dtype=np.int32)
 
@@ -151,97 +68,68 @@ def shapely_to_polydata(shp_geom) -> pv.PolyData:
 
 def project_mesh_onto_z0(mesh: pv.PolyData, direction: np.ndarray) -> pv.PolyData:
     """
-    Projects the 'mesh' onto the z=0 plane using the given 'direction'.
+    Proyecta 'mesh' sobre el plano z=0 usando la dirección dada.
+    No se unifican las caras resultantes de la proyección.
 
     Parameters
     ----------
     mesh : pv.PolyData
-        Mesh to be projected (surface).
+        Malla a proyectar.
     direction : np.ndarray
-        Direction vector (dx, dy, dz) for the projection.
+        Vector de dirección (dx, dy, dz) para la proyección.
 
     Returns
     -------
-    shadow_mesh : pv.PolyData
-        New mesh projected onto z=0 with the same connectivity.
-
-    Raises
-    ------
-    ValueError
-        If direction[2] == 0, as there is no intersection with z=0.
+    pv.PolyData
+        Nueva malla proyectada sobre z=0.
     """
     if direction[2] == 0:
-        raise ValueError("The z component of the projection vector is zero. "
-                         "Cannot project onto z=0.")
+        raise ValueError("El componente z del vector de proyección es cero. No se puede proyectar sobre z=0.")
 
     original_points = mesh.points.copy()
     shadow_points = []
 
     for p in original_points:
-        # Parametric equation: p + t * direction
-        # We seek z=0 => p.z + t*dz = 0 => t = -p.z/dz
+        # Ecuación paramétrica: p + t * direction y buscamos t tal que p.z+t*dz = 0
         t = -p[2] / direction[2]
         p_proj = p + t * direction
         shadow_points.append(p_proj)
 
     shadow_points = np.array(shadow_points)
-
-    # Build the new mesh with the same connectivity
+    # Se genera la nueva malla con la misma conectividad sin unificar las caras.
     shadow_mesh = pv.PolyData(shadow_points, mesh.faces)
-
-    # Unify possible overlapping faces
-    shadow_mesh = unify_shadow_mesh(shadow_mesh)
-
     return shadow_mesh
 
 def process_shadows(buildings_combined_mesh: pv.PolyData, sunlight_direction: np.ndarray, building_footprints: MultiPolygon) -> pv.PolyData:
     """
-    Calculates the shadows of the 'buildings_combined_mesh' projected onto the z=0 plane.
-    The shadows are subtracted from the 'building_footprints'.
-    The resulting shadow mesh is returned.
-
-    Parameters
-    ----------
-    buildings_combined_mesh : pv.PolyData
-        Mesh with all buildings combined.
-    sunlight_direction : np.ndarray
-        Vector representing the sunlight direction.
-    building_footprints : MultiPolygon
-        Footprints of all buildings.
-
-    Returns
-    -------
-    pv.PolyData
-        Shadow mesh without the building bases.
+    Calcula las sombras de 'buildings_combined_mesh' proyectándola sobre z=0 y 
+    le quita las bases de los edificios restando la unión de las huellas.
     """
-
-    # Project the entire mesh onto z=0
+    # Proyecta la malla sobre z=0
     shadow_mesh = project_mesh_onto_z0(buildings_combined_mesh, sunlight_direction)
     shadow_mesh = shadow_mesh.triangulate().clean()
 
-    # Convert the shadow to Shapely
-    shadow_polygons = polydata_to_shapely(shadow_mesh)
-    # Subtract ALL building footprints
-    final_shadow = shadow_polygons.difference(building_footprints)
+    # Convierte la malla proyectada a Shapely y "limpia" su geometría
+    shadow_polygons = polydata_to_shapely(shadow_mesh).buffer(0)
 
-    # Convert the resulting shadow to PolyData
-    shadow_mesh_no_bases = shapely_to_polydata(final_shadow)
-
-    return shadow_mesh_no_bases
+    # Une todas las huellas y aplica un buffer para ampliar las bases
+    building_footprints = unary_union(building_footprints).buffer(0)
+    
+    # Realiza la diferencia y "limpia" el resultado
+    shadow_polygons = make_valid(shadow_polygons)
+    building_footprints = make_valid(building_footprints)
+    shadows_without_bases = shadow_polygons.difference(building_footprints).buffer(0)
+    
+    return shapely_to_polydata(shadows_without_bases)
 
 def save_shadows_to_geojson(shadow_mesh, file_path):
-
-    # Convert the shadow mesh to a Shapely polygon
+    """
+    Guarda las sombras proyectadas en un archivo GeoJSON.
+    Se convierten las coordenadas de EPSG:25829 a EPSG:4326.
+    """
     shadow_polygons = polydata_to_shapely(shadow_mesh)
-
-    # Convert coordinates from EPSG:25829 to EPSG:4326 in shapely
     shadow_polygons = convert_multipolygon_coordinates_25829_to_4326(shadow_polygons)
-
-    # Convert the shadow polygons to GeoJSON
     geojson_dict = mapping(shadow_polygons)
-
-    # Save the GeoJSON to a file
     with open(file_path, 'w') as f:
         json.dump(geojson_dict, f)
-
     return file_path
