@@ -1,8 +1,10 @@
 import pyvista as pv
 from shapely.ops import unary_union
-from shapely.geometry import Polygon, MultiPolygon
+from shapely.geometry import Polygon, MultiPolygon, mapping
 import numpy as np
+import json
 
+from .coordinates import convert_multipolygon_coordinates_25829_to_4326 
 
 def unify_shadow_mesh(shadow_mesh: pv.PolyData) -> pv.PolyData:
     """
@@ -194,6 +196,23 @@ def project_mesh_onto_z0(mesh: pv.PolyData, direction: np.ndarray) -> pv.PolyDat
 
 def process_shadows(buildings_combined_mesh: pv.PolyData, sunlight_direction: np.ndarray, building_footprints: MultiPolygon) -> pv.PolyData:
     """
+    Calculates the shadows of the 'buildings_combined_mesh' projected onto the z=0 plane.
+    The shadows are subtracted from the 'building_footprints'.
+    The resulting shadow mesh is returned.
+
+    Parameters
+    ----------
+    buildings_combined_mesh : pv.PolyData
+        Mesh with all buildings combined.
+    sunlight_direction : np.ndarray
+        Vector representing the sunlight direction.
+    building_footprints : MultiPolygon
+        Footprints of all buildings.
+
+    Returns
+    -------
+    pv.PolyData
+        Shadow mesh without the building bases.
     """
 
     # Project the entire mesh onto z=0
@@ -209,3 +228,20 @@ def process_shadows(buildings_combined_mesh: pv.PolyData, sunlight_direction: np
     shadow_mesh_no_bases = shapely_to_polydata(final_shadow)
 
     return shadow_mesh_no_bases
+
+def save_shadows_to_geojson(shadow_mesh, file_path):
+
+    # Convert the shadow mesh to a Shapely polygon
+    shadow_polygons = polydata_to_shapely(shadow_mesh)
+
+    # Convert coordinates from EPSG:25829 to EPSG:4326 in shapely
+    shadow_polygons = convert_multipolygon_coordinates_25829_to_4326(shadow_polygons)
+
+    # Convert the shadow polygons to GeoJSON
+    geojson_dict = mapping(shadow_polygons)
+
+    # Save the GeoJSON to a file
+    with open(file_path, 'w') as f:
+        json.dump(geojson_dict, f)
+
+    return file_path

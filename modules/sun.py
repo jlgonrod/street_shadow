@@ -2,7 +2,7 @@ from pvlib.solarposition import get_solarposition
 import pandas as pd
 from zoneinfo import ZoneInfo
 import numpy as np
-from .coordinates import convert_coordinates
+from .coordinates import convert_coordinates_25829_to_4326
 
 def get_zenith_azimuth(lat, lon, datetime):
     """
@@ -73,7 +73,7 @@ def get_sulight_vector(x, y, dt):
     """
     
     # Convert the coordinates from EPSG:25829 to EPSG:4326
-    lon, lat = convert_coordinates(x, y)
+    lon, lat = convert_coordinates_25829_to_4326(x, y)
 
     # Get the zenith and azimuth angles (degrees)
     zenith, azimuth = get_zenith_azimuth(lat, lon, dt)

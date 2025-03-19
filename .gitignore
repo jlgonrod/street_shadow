@@ -1,2 +1,4 @@
 .venv/
 data/
+*__pycache__/
+modules/__pycache__/coordinates.cpython-311.pyc

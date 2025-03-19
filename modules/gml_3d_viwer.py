@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 from .map_image import draw_base_map
 from .sun import get_sulight_vector
-from .shadow import process_shadows
+from .shadow import process_shadows, save_shadows_to_geojson
 
 
 def gml_3d_from_file(gml_file_path, dt, texture_map=True):
@@ -46,6 +46,9 @@ def gml_3d_from_file(gml_file_path, dt, texture_map=True):
         buildings_3d = []
         footprints_polygons = []  # to store footprints (Polygons)
         all_coords_for_map = []   # to draw the base texture
+
+        # Process each building
+        print("Processing buildings...")
 
         for building in tqdm(root.findall(".//bu-ext2d:BuildingPart", ns), desc="Processing buildings"):
             # Get number of floors above ground
@@ -106,11 +109,13 @@ def gml_3d_from_file(gml_file_path, dt, texture_map=True):
             print("No 3D model generated (no building parts or num_floors_aboveGround=0).")
             return
 
+        print("Combining building meshes...")
         # 1) Unify all meshes into one (for visualization)
         combined_mesh = buildings_3d[0].copy()
-        for bld in buildings_3d[1:]:
+        for bld in tqdm(buildings_3d[1:], desc="Combining building meshes"):
             combined_mesh = combined_mesh.merge(bld)
 
+        print("Processing building footprints...")
         # 2) Unify all footprints into a MultiPolygon
         #    to then subtract the shadows
         if footprints_polygons:
@@ -132,6 +137,7 @@ def gml_3d_from_file(gml_file_path, dt, texture_map=True):
             # estimate the center for the solar direction:
             center_xy = np.mean(all_coords_for_map, axis=0) if all_coords_for_map else (0, 0)
 
+        print("Adding meshes to the plot...")
         # 4) Add the building mesh
         plotter.add_mesh(
             combined_mesh,
@@ -139,6 +145,7 @@ def gml_3d_from_file(gml_file_path, dt, texture_map=True):
             label="Unified buildings"
         )
 
+        print("Calculating shadows...")
         # 5) If dt is not None, calculate and project shadows
         if dt:
             # Sunlight direction vector
@@ -146,6 +153,9 @@ def gml_3d_from_file(gml_file_path, dt, texture_map=True):
 
             # Calculate the shadows
             shadow_mesh_no_bases = process_shadows(combined_mesh, sunlight_direction, all_buildings_footprints)
+
+            # Save the shadows without the bases
+            save_shadows_to_geojson(shadow_mesh_no_bases, f"./data/temp/{sunlight_direction[0]}_{sunlight_direction[1]}_{sunlight_direction[2]}.geojson")
 
             # Add the final shadow
             plotter.add_mesh(
@@ -157,10 +167,15 @@ def gml_3d_from_file(gml_file_path, dt, texture_map=True):
             # Add text with date/time if needed
             plotter.add_text(f"Date and Time: {dt}", position='upper_left', font_size=10, color='black')
 
+        print("Showing the plot...")
         # Optional: grid and view
         plotter.show_grid()
         plotter.view_isometric()
         plotter.show()
 
+    except ET.ParseError as e:
+        print(f"XML parsing error: {e}")
+    except FileNotFoundError as e:
+        print(f"File not found: {e}")
     except Exception as e:
-        print(f"Error processing the GML: {e}")
+        print(f"Unexpected error: {e}")

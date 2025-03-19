@@ -5,7 +5,7 @@ from PIL import Image
 import pyvista as pv
 import io
 import numpy as np
-from .coordinates import convert_coordinates_arrays, get_square_coords_from_coords
+from .coordinates import convert_coordinates_arrays_25829_to_4326, get_square_coords_from_coords
 
 def get_min_max_coords(lon1, lat1, lon2, lat2):
     """
@@ -150,7 +150,7 @@ def get_image_from_coords(coords_gml):
     coords_min_max = np.array([min_coords, max_coords])
 
     # Convert the coordinates to EPSG:4326
-    coords_min_max = convert_coordinates_arrays(coords_min_max)
+    coords_min_max = convert_coordinates_arrays_25829_to_4326(coords_min_max)
 
     # Reorder from [[lon, lat]] to [[lat, lon]]
     coords_min_max = np.array([[coords_min_max[0][1], coords_min_max[0][0]], [coords_min_max[1][1], coords_min_max[1][0]]])
