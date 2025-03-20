@@ -4,8 +4,6 @@ import numpy as np
 import json
 from shapely.ops import unary_union
 from shapely.validation import make_valid
-import geopandas as gpd
-
 
 from .coordinates import convert_multipolygon_coordinates_25829_to_4326 
 
@@ -110,15 +108,17 @@ def process_shadows(buildings_combined_mesh: pv.PolyData, sunlight_direction: np
     shadow_mesh = shadow_mesh.triangulate().clean()
 
     # Convierte la malla proyectada a Shapely y "limpia" su geometría
-    shadow_polygons = polydata_to_shapely(shadow_mesh).buffer(0)
+    shadow_polygons = polydata_to_shapely(shadow_mesh)
+    shadow_polygons = unary_union(shadow_polygons).buffer(0)
+    shadow_polygons = make_valid(shadow_polygons)
 
     # Une todas las huellas y aplica un buffer para ampliar las bases
     building_footprints = unary_union(building_footprints).buffer(0)
-    
-    # Realiza la diferencia y "limpia" el resultado
-    shadow_polygons = make_valid(shadow_polygons)
     building_footprints = make_valid(building_footprints)
+
+    # Realiza la diferencia y "limpia" el resultado
     shadows_without_bases = shadow_polygons.difference(building_footprints).buffer(0)
+    shadows_without_bases = make_valid(shadows_without_bases)
     
     return shapely_to_polydata(shadows_without_bases)
 
@@ -128,6 +128,7 @@ def save_shadows_to_geojson(shadow_mesh, file_path):
     Se convierten las coordenadas de EPSG:25829 a EPSG:4326.
     """
     shadow_polygons = polydata_to_shapely(shadow_mesh)
+
     shadow_polygons = convert_multipolygon_coordinates_25829_to_4326(shadow_polygons)
     geojson_dict = mapping(shadow_polygons)
     with open(file_path, 'w') as f:

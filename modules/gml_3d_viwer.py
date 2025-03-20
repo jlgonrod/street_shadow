@@ -1,4 +1,5 @@
 import xml.etree.ElementTree as ET
+from os.path import basename, splitext
 import pyvista as pv
 import numpy as np
 from shapely.geometry import Polygon, MultiPolygon
@@ -155,7 +156,7 @@ def gml_3d_from_file(gml_file_path, dt, texture_map=True):
             shadow_mesh_no_bases = process_shadows(combined_mesh, sunlight_direction, all_buildings_footprints)
 
             # Save the shadows without the bases
-            save_shadows_to_geojson(shadow_mesh_no_bases, f"./data/temp/{sunlight_direction[0]}_{sunlight_direction[1]}_{sunlight_direction[2]}.geojson")
+            save_shadows_to_geojson(shadow_mesh_no_bases, f"./data/temp/{splitext(basename(gml_file_path))[0]}_{sunlight_direction[0]}_{sunlight_direction[1]}_{sunlight_direction[2]}.geojson")
 
             # Add the final shadow
             plotter.add_mesh(

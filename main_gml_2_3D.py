@@ -7,13 +7,14 @@ from zoneinfo import ZoneInfo
 #GML_FILE_PATH = f"./data/gml/buildings/Building_{ref}.gml"
 
 # Get the GML file path for a town
-GML_FILE_PATH = "./data/gmL/towns/A.ES.SDGC.BU.21011.buildingpart.gml"
+name = "beas"
+GML_FILE_PATH = f"./data/gml/towns/{name}.gml"
 
 # Set the datetime to calculate the shadows based on the sun position
 dt_sample = pd_Timestamp(
-    year=2023,
+    year=2025,
     month=3,
-    day=1,
+    day=20,
     hour=18,
     minute=15,
     second=00,
