@@ -14,24 +14,24 @@ from .shadow import process_shadows, save_shadows_to_geojson
 
 def process_buildings(root, ns):
     """
-    Procesa los edificios desde el árbol XML y genera las mallas 3D y las huellas 2D.
+    Processes buildings from the XML tree and generates 3D meshes and 2D footprints.
 
     Parameters
     ----------
     root : xml.etree.ElementTree.Element
-        Raíz del árbol XML del archivo GML.
+        Root of the XML tree from the GML file.
     ns : dict
-        Diccionario con los espacios de nombres (namespaces) del GML.
+        Dictionary with the GML namespaces.
 
     Returns
     -------
     tuple
         buildings_3d : list
-            Lista de mallas 3D de los edificios.
+            List of 3D meshes of the buildings.
         footprints_polygons : list
-            Lista de polígonos de las huellas de los edificios.
+            List of polygons representing the building footprints.
         all_coords_for_map : list
-            Lista de todas las coordenadas para el mapa base.
+            List of all coordinates for the base map.
     """
     buildings_3d = []
     footprints_polygons = []
@@ -40,7 +40,7 @@ def process_buildings(root, ns):
     print("Processing buildings...")
 
     for building in tqdm(root.findall(".//bu-ext2d:BuildingPart", ns), desc="Processing buildings"):
-        # Obtener el número de pisos sobre el suelo
+        # Get the number of floors above ground
         floors_above_element = building.find(".//bu-ext2d:numberOfFloorsAboveGround", ns)
         num_floors_above = int(floors_above_element.text) if floors_above_element is not None else 0
 
@@ -85,17 +85,17 @@ def process_buildings(root, ns):
 
 def combine_and_save_meshes(buildings_3d, output_file):
     """
-    Combina las mallas 3D y las guarda en un archivo.
+    Combines 3D meshes and saves them to a file.
 
     Parameters
     ----------
     buildings_3d : list
-        Lista de mallas 3D de los edificios.
+        List of 3D meshes of the buildings.
     output_file : str
-        Ruta del archivo donde se guardará la malla combinada.
+        Path to the file where the combined mesh will be saved.
     """
     if not buildings_3d:
-        print("No hay mallas para combinar.")
+        print("No meshes to combine.")
         return
 
     print("Combining building meshes...")
@@ -109,25 +109,25 @@ def combine_and_save_meshes(buildings_3d, output_file):
 
 def load_or_process_buildings(gml_file_path, root, ns):
     """
-    Carga la malla combinada desde un archivo si existe, o procesa los edificios y guarda la malla combinada.
+    Loads the combined mesh from a file if it exists, or processes the buildings and saves the combined mesh.
 
     Parameters
     ----------
     gml_file_path : str
-        Ruta del archivo GML.
+        Path to the GML file.
     root : xml.etree.ElementTree.Element
-        Raíz del árbol XML del archivo GML.
+        Root of the XML tree from the GML file.
     ns : dict
-        Diccionario con los espacios de nombres (namespaces) del GML.
+        Dictionary with the GML namespaces.
 
     Returns
     -------
     pv.PolyData
-        Malla combinada de los edificios.
+        Combined mesh of the buildings.
     list
-        Lista de polígonos de las huellas de los edificios.
+        List of polygons representing the building footprints.
     list
-        Lista de todas las coordenadas para el mapa base.
+        List of all coordinates for the base map.
     """
     combined_mesh_file = f"./data/vtk/{splitext(basename(gml_file_path))[0]}_combined_mesh.vtk"
 
@@ -146,17 +146,17 @@ def load_or_process_buildings(gml_file_path, root, ns):
 
 def process_footprints(footprints_polygons):
     """
-    Unifica las huellas de los edificios en un MultiPolygon.
+    Unifies building footprints into a MultiPolygon.
 
     Parameters
     ----------
     footprints_polygons : list
-        Lista de polígonos de las huellas de los edificios.
+        List of polygons representing the building footprints.
 
     Returns
     -------
     MultiPolygon
-        Huellas unificadas de los edificios.
+        Unified building footprints.
     """
     if footprints_polygons:
         return unary_union(footprints_polygons)
@@ -165,21 +165,21 @@ def process_footprints(footprints_polygons):
 
 def add_base_plane(plotter, all_coords_for_map, texture_map):
     """
-    Genera y agrega el plano base con textura al renderizador.
+    Generates and adds the textured base plane to the renderer.
 
     Parameters
     ----------
     plotter : pv.Plotter
-        Renderizador de PyVista.
+        PyVista renderer.
     all_coords_for_map : list
-        Lista de coordenadas para el mapa base.
+        List of coordinates for the base map.
     texture_map : bool
-        Indica si se debe agregar una textura al plano base.
+        Indicates whether to add a texture to the base plane.
 
     Returns
     -------
     tuple
-        Coordenadas centrales del plano base.
+        Central coordinates of the base plane.
     """
     if texture_map and all_coords_for_map:
         pad = 30
@@ -189,45 +189,51 @@ def add_base_plane(plotter, all_coords_for_map, texture_map):
     return np.mean(all_coords_for_map, axis=0) if all_coords_for_map else (0, 0)
 
 
-def calculate_and_add_shadows(plotter, combined_mesh, all_buildings_footprints, center_xy, dt, gml_file_path):
+def calculate_and_add_shadows(plotter, combined_mesh, all_buildings_footprints, center_xy, dt, gml_file_path, remove_bases=False):
     """
-    Calcula las sombras y las agrega al renderizador.
+    Calculates shadows and adds them to the renderer.
 
     Parameters
     ----------
     plotter : pv.Plotter
-        Renderizador de PyVista.
+        PyVista renderer.
     combined_mesh : pv.PolyData
-        Malla combinada de los edificios.
+        Combined mesh of the buildings.
     all_buildings_footprints : MultiPolygon
-        Huellas unificadas de los edificios.
+        Unified building footprints.
     center_xy : tuple
-        Coordenadas centrales para calcular la dirección de la luz solar.
+        Central coordinates to calculate the sunlight direction.
     dt : pd.Timestamp
-        Fecha y hora para calcular la posición del sol.
+        Date and time to calculate the sun's position.
+    remove_bases : bool, optional
+        Indicates whether to remove the bases of the shadows. Default is True.
     """
     if dt:
         sunlight_direction = get_sulight_vector(center_xy[0], center_xy[1], dt)
-        shadow_mesh_no_bases = process_shadows(combined_mesh, sunlight_direction, all_buildings_footprints)
+        shadow_mesh = process_shadows(combined_mesh, sunlight_direction, all_buildings_footprints)
+        
+        if remove_bases:
+            shadow_mesh = shadow_mesh.extract_surface().triangulate()
+
         save_shadows_to_geojson(
-            shadow_mesh_no_bases, 
+            shadow_mesh, 
             f"./data/shadow_geojson/{splitext(basename(gml_file_path))[0]}_{sunlight_direction[0]}_{sunlight_direction[1]}_{sunlight_direction[2]}.geojson"
         )
-        plotter.add_mesh(shadow_mesh_no_bases, color="gray", opacity=0.8, show_edges=False, label="Shadows")
+        plotter.add_mesh(shadow_mesh, color="gray", opacity=0.8, show_edges=False, label="Shadows")
 
 
 def render_scene(plotter, combined_mesh, dt):
     """
-    Configura y muestra la escena en el renderizador.
+    Configures and displays the scene in the renderer.
 
     Parameters
     ----------
     plotter : pv.Plotter
-        Renderizador de PyVista.
+        PyVista renderer.
     combined_mesh : pv.PolyData
-        Malla combinada de los edificios.
+        Combined mesh of the buildings.
     dt : pd.Timestamp
-        Fecha y hora para mostrar en la escena.
+        Date and time to display in the scene.
     """
     plotter.add_mesh(combined_mesh, color="lightblue", opacity=1, show_edges=False, label="Unified buildings")
     if dt:
@@ -239,19 +245,19 @@ def render_scene(plotter, combined_mesh, dt):
 
 def gml_3d_from_file(gml_file_path, dt, texture_map=True):
     """
-    Procesa un archivo GML y genera la visualización 3D de los edificios.
+    Processes a GML file and generates a 3D visualization of the buildings.
 
     Parameters
     ----------
     gml_file_path : str
-        Ruta del archivo GML.
+        Path to the GML file.
     dt : pd.Timestamp
-        Fecha y hora para calcular la posición del sol.
+        Date and time to calculate the sun's position.
     texture_map : bool, optional
-        Indica si se debe agregar una textura al plano base. Por defecto es True.
+        Indicates whether to add a texture to the base plane. Default is True.
     """
     try:
-        # Cargar el archivo GML
+        # Load the GML file
         tree = ET.parse(gml_file_path)
         root = tree.getroot()
         ns = {
@@ -259,22 +265,24 @@ def gml_3d_from_file(gml_file_path, dt, texture_map=True):
             "bu-ext2d": "http://inspire.jrc.ec.europa.eu/schemas/bu-ext2d/2.0"
         }
 
-        # Cargar o procesar edificios
+        # Load or process buildings
         combined_mesh, footprints_polygons, all_coords_for_map = load_or_process_buildings(gml_file_path, root, ns)
 
-        # Procesar huellas de edificios
+        # Process building footprints
         all_buildings_footprints = process_footprints(footprints_polygons)
 
-        # Crear el renderizador
+        # Create the renderer
         plotter = pv.Plotter()
 
-        # Agregar el plano base
+        # Add the base plane
         center_xy = add_base_plane(plotter, all_coords_for_map, texture_map)
 
-        # Calcular y agregar sombras
+        # Calculate and add shadows
+        # Shadows coinciding with the building bases are not removed
+        # But you can set the parameter remove_bases to True to remove them
         calculate_and_add_shadows(plotter, combined_mesh, all_buildings_footprints, center_xy, dt, gml_file_path)
 
-        # Renderizar la escena
+        # Render the scene
         render_scene(plotter, combined_mesh, dt)
 
     except ET.ParseError as e:
