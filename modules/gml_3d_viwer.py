@@ -6,6 +6,7 @@ import numpy as np
 from shapely.geometry import Polygon, MultiPolygon
 from shapely.ops import unary_union
 from tqdm import tqdm
+import pickle as pkl
 
 from .map_image import draw_base_map
 from .sun import get_sulight_vector
@@ -83,16 +84,26 @@ def process_buildings(root, ns):
     return buildings_3d, footprints_polygons, all_coords_for_map
 
 
-def combine_and_save_meshes(buildings_3d, output_file):
+def combine_and_save_processed_files(buildings_3d, buildings_3d_file,
+                                     footprints_polygons, footprints_polygons_file,
+                                     all_coords_for_map, all_coords_for_map_file):
     """
-    Combines 3D meshes and saves them to a file.
+    Combines 3D meshes and saves them along with footprints and coordinates to files.
 
     Parameters
     ----------
     buildings_3d : list
         List of 3D meshes of the buildings.
-    output_file : str
+    buildings_3d_file : str
         Path to the file where the combined mesh will be saved.
+    footprints_polygons : list
+        List of polygons representing the building footprints.
+    footprints_polygons_file : str
+        Path to the file where the footprints will be saved.
+    all_coords_for_map : list
+        List of all coordinates for the base map.
+    all_coords_for_map_file : str
+        Path to the file where the coordinates will be saved.
     """
     if not buildings_3d:
         print("No meshes to combine.")
@@ -103,8 +114,16 @@ def combine_and_save_meshes(buildings_3d, output_file):
     for bld in tqdm(buildings_3d[1:], desc="Combining building meshes"):
         combined_mesh = combined_mesh.merge(bld)
 
-    print(f"Saving combined mesh to {output_file}...")
-    combined_mesh.save(output_file)
+    print(f"Saving combined mesh to {buildings_3d_file}...")
+    combined_mesh.save(buildings_3d_file)
+
+    print(f"Saving footprints to {footprints_polygons_file}...")
+    with open(footprints_polygons_file, "wb") as f:
+        pkl.dump(footprints_polygons, f)
+
+    print(f"Saving coordinates to {all_coords_for_map_file}...")
+    with open(all_coords_for_map_file, "wb") as f:
+        pkl.dump(all_coords_for_map, f)
 
 
 def load_or_process_buildings(gml_file_path, root, ns):
@@ -129,16 +148,24 @@ def load_or_process_buildings(gml_file_path, root, ns):
     list
         List of all coordinates for the base map.
     """
-    combined_mesh_file = f"./data/vtk/{splitext(basename(gml_file_path))[0]}_combined_mesh.vtk"
+    combined_mesh_file = f"./data/processed_files/{splitext(basename(gml_file_path))[0]}_combined_mesh.vtk"
+    footprints_polygons_file = f"./data/processed_files/{splitext(basename(gml_file_path))[0]}_footprints_polygons.pkl"
+    all_coords_for_map_file = f"./data/processed_files/{splitext(basename(gml_file_path))[0]}_all_coords_for_map.pkl"
 
-    if os.path.exists(combined_mesh_file):
+    if os.path.exists(combined_mesh_file) and os.path.exists(footprints_polygons_file) and os.path.exists(all_coords_for_map_file):
         print(f"Loading existing combined mesh from {combined_mesh_file}...")
         combined_mesh = pv.read(combined_mesh_file)
-        return combined_mesh, None, None
+
+        footprints_polygons = pkl.load(open(footprints_polygons_file, "rb"))
+        all_coords_for_map = pkl.load(open(all_coords_for_map_file, "rb"))
+        
+        return combined_mesh, footprints_polygons, all_coords_for_map
 
     print("Processing buildings...")
     buildings_3d, footprints_polygons, all_coords_for_map = process_buildings(root, ns)
-    combine_and_save_meshes(buildings_3d, combined_mesh_file)
+    combine_and_save_processed_files(buildings_3d, combined_mesh_file,
+                                     footprints_polygons, footprints_polygons_file,
+                                     all_coords_for_map, all_coords_for_map_file)
     combined_mesh = pv.read(combined_mesh_file)
 
     return combined_mesh, footprints_polygons, all_coords_for_map
@@ -189,7 +216,7 @@ def add_base_plane(plotter, all_coords_for_map, texture_map):
     return np.mean(all_coords_for_map, axis=0) if all_coords_for_map else (0, 0)
 
 
-def calculate_and_add_shadows(plotter, combined_mesh, all_buildings_footprints, center_xy, dt, gml_file_path, remove_bases=False):
+def calculate_and_add_shadows(plotter, combined_mesh, all_buildings_footprints, center_xy, dt, gml_file_path, remove_bases=True):
     """
     Calculates shadows and adds them to the renderer.
 
@@ -210,16 +237,16 @@ def calculate_and_add_shadows(plotter, combined_mesh, all_buildings_footprints, 
     """
     if dt:
         sunlight_direction = get_sulight_vector(center_xy[0], center_xy[1], dt)
-        shadow_mesh = process_shadows(combined_mesh, sunlight_direction, all_buildings_footprints)
+        shadow_mesh = process_shadows(combined_mesh, sunlight_direction)
         
-        if remove_bases:
-            shadow_mesh = shadow_mesh.extract_surface().triangulate()
-
         save_shadows_to_geojson(
-            shadow_mesh, 
-            f"./data/shadow_geojson/{splitext(basename(gml_file_path))[0]}_{sunlight_direction[0]}_{sunlight_direction[1]}_{sunlight_direction[2]}.geojson"
+            shadow_mesh,
+            f"./data/shadow_geojson/{splitext(basename(gml_file_path))[0]}_{sunlight_direction[0]}_{sunlight_direction[1]}_{sunlight_direction[2]}.geojson",
+            all_buildings_footprints,
+            remove_bases=remove_bases
         )
-        plotter.add_mesh(shadow_mesh, color="gray", opacity=0.8, show_edges=False, label="Shadows")
+        
+        plotter.add_mesh(shadow_mesh, color="gray", opacity=1, show_edges=False, label="Shadows")
 
 
 def render_scene(plotter, combined_mesh, dt):
@@ -280,7 +307,7 @@ def gml_3d_from_file(gml_file_path, dt, texture_map=True):
         # Calculate and add shadows
         # Shadows coinciding with the building bases are not removed
         # But you can set the parameter remove_bases to True to remove them
-        calculate_and_add_shadows(plotter, combined_mesh, all_buildings_footprints, center_xy, dt, gml_file_path)
+        calculate_and_add_shadows(plotter, combined_mesh, all_buildings_footprints, center_xy, dt, gml_file_path, remove_bases=True)
 
         # Render the scene
         render_scene(plotter, combined_mesh, dt)

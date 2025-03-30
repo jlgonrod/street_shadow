@@ -15,8 +15,8 @@ dt_sample = pd_Timestamp(
     year=2025,
     month=3,
     day=14,
-    hour=15,
-    minute=0,
+    hour=13,
+    minute=15,
     second=0,
     tz=ZoneInfo('Europe/Madrid') # It cares about the change of hour in summer and winter in Spain
 )

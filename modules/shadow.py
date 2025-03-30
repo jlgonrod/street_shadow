@@ -3,7 +3,6 @@ from shapely.geometry import Polygon, MultiPolygon, mapping
 import numpy as np
 import json
 from shapely.ops import unary_union
-from shapely.validation import make_valid
 
 from .coordinates import convert_multipolygon_coordinates_25829_to_4326 
 
@@ -71,6 +70,7 @@ def project_mesh_onto_z0(mesh: pv.PolyData, direction: np.ndarray) -> pv.PolyDat
 
     Parameters
     ----------
+
     mesh : pv.PolyData
         Malla a proyectar.
     direction : np.ndarray
@@ -98,39 +98,35 @@ def project_mesh_onto_z0(mesh: pv.PolyData, direction: np.ndarray) -> pv.PolyDat
     shadow_mesh = pv.PolyData(shadow_points, mesh.faces)
     return shadow_mesh
 
-def process_shadows(buildings_combined_mesh: pv.PolyData, sunlight_direction: np.ndarray, building_footprints: MultiPolygon) -> pv.PolyData:
+def process_shadows(buildings_combined_mesh: pv.PolyData, sunlight_direction: np.ndarray) -> pv.PolyData:
     """
-    Calcula las sombras de 'buildings_combined_mesh' proyectándola sobre z=0 y 
-    le quita las bases de los edificios restando la unión de las huellas.
+    Calcula las sombras de 'buildings_combined_mesh' proyectándola sobre z=0.
     """
     # Proyecta la malla sobre z=0
     shadow_mesh = project_mesh_onto_z0(buildings_combined_mesh, sunlight_direction)
     shadow_mesh = shadow_mesh.triangulate().clean()
 
-    # Convierte la malla proyectada a Shapely y "limpia" su geometría
-    shadow_polygons = polydata_to_shapely(shadow_mesh)
-    shadow_polygons = unary_union(shadow_polygons).buffer(0)
-    shadow_polygons = make_valid(shadow_polygons)
+    return shadow_mesh
 
-    # Une todas las huellas y aplica un buffer para ampliar las bases
-    building_footprints = unary_union(building_footprints).buffer(0)
-    building_footprints = make_valid(building_footprints)
-
-    # Realiza la diferencia y "limpia" el resultado
-    shadows_without_bases = shadow_polygons.difference(building_footprints).buffer(0)
-    shadows_without_bases = make_valid(shadows_without_bases)
-    
-    return shapely_to_polydata(shadows_without_bases)
-
-def save_shadows_to_geojson(shadow_mesh, file_path):
+def save_shadows_to_geojson(shadow_mesh, file_path, all_buildings_bases, remove_bases):
     """
     Guarda las sombras proyectadas en un archivo GeoJSON.
-    Se convierten las coordenadas de EPSG:25829 a EPSG:4326.
+    Une los polígonos solapados preservando los anillos internos (huecos).
+    Convierte las coordenadas de EPSG:25829 a EPSG:4326.
     """
     shadow_polygons = polydata_to_shapely(shadow_mesh)
 
-    shadow_polygons = convert_multipolygon_coordinates_25829_to_4326(shadow_polygons)
-    geojson_dict = mapping(shadow_polygons)
+    # Se unen los polígonos solapados preservando los anillos internos (huecos)
+    merged = unary_union(shadow_polygons)
+
+    if remove_bases and all_buildings_bases:
+        merged = merged.difference(all_buildings_bases)
+
+    # Se establece el sistema de referencia EPSG:4326 y se convierte a GeoJSON
+    merged_4326 = convert_multipolygon_coordinates_25829_to_4326(merged)
+    geojson_dict = mapping(merged_4326)
+
     with open(file_path, 'w') as f:
         json.dump(geojson_dict, f)
+
     return file_path
