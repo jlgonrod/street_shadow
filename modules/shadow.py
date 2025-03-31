@@ -8,8 +8,8 @@ from .coordinates import convert_multipolygon_coordinates_25829_to_4326
 
 def polydata_to_shapely(poly: pv.PolyData) -> MultiPolygon:
     """
-    Convierte un pv.PolyData (2D en z=0) a un Shapely MultiPolygon.
-    Se extraen los polígonos sin unirlos.
+    Converts a pv.PolyData (2D at z=0) to a Shapely MultiPolygon.
+    Extracts the polygons without merging them.
     """
     if poly.n_cells < 1:
         return MultiPolygon()
@@ -27,13 +27,13 @@ def polydata_to_shapely(poly: pv.PolyData) -> MultiPolygon:
     if not polygons:
         return MultiPolygon()
 
-    # Se retornan los polígonos sin unir.
+    # Returns the polygons without merging them.
     return MultiPolygon(polygons)
 
 def shapely_to_polydata(shp_geom) -> pv.PolyData:
     """
-    Convierte una geometría Shapely (Polygon o MultiPolygon) a un pv.PolyData.
-    Se asume z=0 para toda la geometría.
+    Converts a Shapely geometry (Polygon or MultiPolygon) to a pv.PolyData.
+    Assumes z=0 for the entire geometry.
     """
     if shp_geom.is_empty:
         return pv.PolyData()
@@ -65,44 +65,43 @@ def shapely_to_polydata(shp_geom) -> pv.PolyData:
 
 def project_mesh_onto_z0(mesh: pv.PolyData, direction: np.ndarray) -> pv.PolyData:
     """
-    Proyecta 'mesh' sobre el plano z=0 usando la dirección dada.
-    No se unifican las caras resultantes de la proyección.
+    Projects 'mesh' onto the z=0 plane using the given direction.
+    Does not merge the resulting faces of the projection.
 
     Parameters
     ----------
-
     mesh : pv.PolyData
-        Malla a proyectar.
+        Mesh to project.
     direction : np.ndarray
-        Vector de dirección (dx, dy, dz) para la proyección.
+        Direction vector (dx, dy, dz) for the projection.
 
     Returns
     -------
     pv.PolyData
-        Nueva malla proyectada sobre z=0.
+        New mesh projected onto z=0.
     """
     if direction[2] == 0:
-        raise ValueError("El componente z del vector de proyección es cero. No se puede proyectar sobre z=0.")
+        raise ValueError("The z component of the projection vector is zero. Cannot project onto z=0.")
 
     original_points = mesh.points.copy()
     shadow_points = []
 
     for p in original_points:
-        # Ecuación paramétrica: p + t * direction y buscamos t tal que p.z+t*dz = 0
+        # Parametric equation: p + t * direction, and we solve for t such that p.z + t * dz = 0
         t = -p[2] / direction[2]
         p_proj = p + t * direction
         shadow_points.append(p_proj)
 
     shadow_points = np.array(shadow_points)
-    # Se genera la nueva malla con la misma conectividad sin unificar las caras.
+    # Generates the new mesh with the same connectivity without merging the faces.
     shadow_mesh = pv.PolyData(shadow_points, mesh.faces)
     return shadow_mesh
 
 def process_shadows(buildings_combined_mesh: pv.PolyData, sunlight_direction: np.ndarray) -> pv.PolyData:
     """
-    Calcula las sombras de 'buildings_combined_mesh' proyectándola sobre z=0.
+    Calculates the shadows of 'buildings_combined_mesh' by projecting it onto z=0.
     """
-    # Proyecta la malla sobre z=0
+    # Projects the mesh onto z=0
     shadow_mesh = project_mesh_onto_z0(buildings_combined_mesh, sunlight_direction)
     shadow_mesh = shadow_mesh.triangulate().clean()
 
@@ -110,19 +109,19 @@ def process_shadows(buildings_combined_mesh: pv.PolyData, sunlight_direction: np
 
 def save_shadows_to_geojson(shadow_mesh, file_path, all_buildings_bases, remove_bases):
     """
-    Guarda las sombras proyectadas en un archivo GeoJSON.
-    Une los polígonos solapados preservando los anillos internos (huecos).
-    Convierte las coordenadas de EPSG:25829 a EPSG:4326.
+    Saves the projected shadows to a GeoJSON file.
+    Merges overlapping polygons while preserving inner rings (holes).
+    Converts coordinates from EPSG:25829 to EPSG:4326.
     """
     shadow_polygons = polydata_to_shapely(shadow_mesh)
 
-    # Se unen los polígonos solapados preservando los anillos internos (huecos)
+    # Merges overlapping polygons while preserving inner rings (holes)
     merged = unary_union(shadow_polygons)
 
     if remove_bases and all_buildings_bases:
         merged = merged.difference(all_buildings_bases)
 
-    # Se establece el sistema de referencia EPSG:4326 y se convierte a GeoJSON
+    # Sets the reference system to EPSG:4326 and converts to GeoJSON
     merged_4326 = convert_multipolygon_coordinates_25829_to_4326(merged)
     geojson_dict = mapping(merged_4326)
 

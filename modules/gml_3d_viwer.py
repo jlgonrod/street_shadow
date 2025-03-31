@@ -236,7 +236,7 @@ def calculate_and_add_shadows(plotter, combined_mesh, all_buildings_footprints, 
         Indicates whether to remove the bases of the shadows. Default is True.
     """
     if dt:
-        sunlight_direction = get_sulight_vector(center_xy[0], center_xy[1], dt)
+        sunlight_direction = get_sulight_vector(center_xy[0], center_xy[1], dt, convert_coords=True)
         shadow_mesh = process_shadows(combined_mesh, sunlight_direction)
         
         save_shadows_to_geojson(
