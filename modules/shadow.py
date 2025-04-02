@@ -4,9 +4,9 @@ import numpy as np
 import json
 from shapely.ops import unary_union
 from time import time
-
-from .coordinates import convert_multipolygon_coordinates_EPSG_to_4326 
 from tqdm import tqdm
+from multiprocessing import Pool, cpu_count
+from .coordinates import convert_multipolygon_coordinates_EPSG_to_4326
 
 def polydata_to_shapely(poly: pv.PolyData) -> MultiPolygon:
     """
@@ -84,10 +84,10 @@ def project_mesh_onto_z0(mesh: pv.PolyData, direction: np.ndarray) -> pv.PolyDat
     # where t = -original_points[:, 2] / direction[2]
     # This computes the intersection of the line defined by the direction vector with the z=0 plane.
     # The direction vector is assumed to be normalized.
+
     original_points = mesh.points
     t = -original_points[:, 2] / direction[2]
     shadow_points = original_points + t[:, np.newaxis] * direction
-    
 
     # Generates the new mesh with the same connectivity without merging the faces.
     shadow_mesh = pv.PolyData(shadow_points, mesh.faces)
@@ -101,6 +101,42 @@ def process_shadows(buildings_combined_mesh: pv.PolyData, sunlight_direction: np
     shadow_mesh = project_mesh_onto_z0(buildings_combined_mesh, sunlight_direction)
 
     return shadow_mesh
+
+def parallel_unary_union(multi_polygon, num_processes=None):
+    """
+    Performs a parallel unary union on a MultiPolygon.
+
+    Parameters
+    ----------
+    multi_polygon : MultiPolygon
+        A Shapely MultiPolygon to merge.
+    num_processes : int, optional
+        Number of processes to use. Defaults to the number of CPU cores.
+
+    Returns
+    -------
+    MultiPolygon
+        The merged MultiPolygon.
+    """
+    if multi_polygon.is_empty or len(multi_polygon.geoms) == 0:
+        return MultiPolygon()
+
+    if num_processes is None:
+        num_processes = cpu_count()
+
+    # Extract individual polygons from the MultiPolygon
+    polygons = list(multi_polygon.geoms)
+
+    # Split polygons into chunks for parallel processing
+    chunk_size = max(1, len(polygons) // num_processes)
+    chunks = [polygons[i:i + chunk_size] for i in range(0, len(polygons), chunk_size)]
+
+    # Perform unary_union on each chunk in parallel
+    with Pool(processes=num_processes) as pool:
+        partial_results = pool.map(unary_union, chunks)
+
+    # Merge the partial results sequentially
+    return unary_union(partial_results)
 
 def save_shadows_to_geojson(shadow_mesh, file_path, all_buildings_bases, epsg_source, remove_bases):
     """
@@ -121,11 +157,10 @@ def save_shadows_to_geojson(shadow_mesh, file_path, all_buildings_bases, epsg_so
     remove_bases : bool
         Whether to remove the base of the buildings from the shadows.
     """
-    
     shadow_polygons = polydata_to_shapely(shadow_mesh)
 
-    # Merges overlapping polygons while preserving inner rings (holes)
-    merged = unary_union(shadow_polygons)
+    # Use parallel unary union
+    merged = parallel_unary_union(shadow_polygons)
 
     if remove_bases and all_buildings_bases:
         merged = merged.difference(all_buildings_bases)
