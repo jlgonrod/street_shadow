@@ -2,33 +2,44 @@ from pyproj import Transformer
 import numpy as np
 from shapely.geometry import Polygon, MultiPolygon
 
-def convert_coordinates_25829_to_4326(x, y):
+def convert_coordinates_EPSG_to_4326(x, y, epsg_source):
     """
-    This function converts a pair of coordinates from EPSG:25829 to EPSG:4326.
+    This function converts a pair of coordinates from EPSG:***** to EPSG:4326.
 
     Parameters:
     x (float): The X coordinate in EPSG:25829.
     y (float): The Y coordinate in EPSG:25829.
+    epsg (str): The EPSG code of the coordinate system to convert to.
+                Example: "EPSG:25829"
 
     Returns:
     tuple: A tuple with the converted coordinates in EPSG
     """
-    # Set up the transformer from EPSG:25829 (source) to EPSG:4326 (destination)
-    transformer = Transformer.from_crs("EPSG:25829", "EPSG:4326", always_xy=True)
+
+    # Set up the transformer from EPSG:***** (source) to EPSG:4326 (destination)
+    transformer = Transformer.from_crs(epsg_source, "EPSG:4326", always_xy=True)
 
     # Convert the coordinates
     x_out, y_out = transformer.transform(x, y)
 
     return x_out, y_out
 
-def convert_coordinates_arrays_25829_to_4326(coords_arrays):
+def convert_coordinates_arrays_EPSG_to_4326(coords_arrays, epsg_source):
     """
-    This function converts a list of coordinates from EPSG:25829 to EPSG:4326.
+    This function converts a list of coordinates from EPSG:***** to EPSG:4326.
     The shaped array should be (2, N) where N is the number of coordinates.
+
+    Parameters:
+    coords_arrays (np.array): A numpy array with the coordinates to convert.
+    epsg_source (str): The EPSG code of the coordinate system to convert to.
+                Example: "EPSG:25829"
+    
+    Returns:
+    np.array: A numpy array with the converted coordinates in EPSG:4326.
     """
 
     # Set up the transformer from EPSG:25829 (source) to EPSG:4326 (destination)
-    transformer = Transformer.from_crs("EPSG:25829", "EPSG:4326", always_xy=True)
+    transformer = Transformer.from_crs(epsg_source, "EPSG:4326", always_xy=True)
 
     # Convert the coordinates in the array in the same shape
     coords_out = [transformer.transform(x, y) for x, y in coords_arrays]
@@ -70,14 +81,17 @@ def get_square_coords_from_coords(coords_rectangle):
 
     return np.array([[x1, y1], [x2, y2]])
 
-def convert_multipolygon_coordinates_25829_to_4326(multipolygon):
+def convert_multipolygon_coordinates_EPSG_to_4326(multipolygon, epsg_source):
     """
-    Convert the coordinates of a MultiPolygon from EPSG:25829 to EPSG:4326.
+    Convert the coordinates of a MultiPolygon from EPSG:***** to EPSG:4326.
 
     Parameters
     ----------
     multipolygon : shapely.geometry.MultiPolygon
         The MultiPolygon to convert.
+    epsg_source : str
+        The EPSG code of the coordinate system to convert from.
+        Example: "EPSG:25829"
 
     Returns
     -------
@@ -85,7 +99,7 @@ def convert_multipolygon_coordinates_25829_to_4326(multipolygon):
         The converted MultiPolygon.
     """
     # Set up the transformer from EPSG:25829 (source) to EPSG:4326 (destination)
-    transformer = Transformer.from_crs("EPSG:25829", "EPSG:4326", always_xy=True)
+    transformer = Transformer.from_crs(epsg_source, "EPSG:4326", always_xy=True)
     
     converted_polygons = []
     for polygon in multipolygon.geoms:

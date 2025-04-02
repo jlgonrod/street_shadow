@@ -7,6 +7,7 @@ from shapely.geometry import Polygon, MultiPolygon
 from shapely.ops import unary_union
 from tqdm import tqdm
 import pickle as pkl
+from time import time
 
 from .map_image import draw_base_map
 from .sun import get_sulight_vector
@@ -162,12 +163,14 @@ def load_or_process_buildings(gml_file_path, root, ns):
         return combined_mesh, footprints_polygons, all_coords_for_map
 
     print("Processing buildings...")
+    start_time = time()
     buildings_3d, footprints_polygons, all_coords_for_map = process_buildings(root, ns)
     combine_and_save_processed_files(buildings_3d, combined_mesh_file,
                                      footprints_polygons, footprints_polygons_file,
                                      all_coords_for_map, all_coords_for_map_file)
     combined_mesh = pv.read(combined_mesh_file)
-
+    end_time = time()
+    print(f"Time taken to process buildings: {end_time - start_time:.2f} seconds")
     return combined_mesh, footprints_polygons, all_coords_for_map
 
 
@@ -190,7 +193,7 @@ def process_footprints(footprints_polygons):
     return MultiPolygon()
 
 
-def add_base_plane(plotter, all_coords_for_map, texture_map):
+def add_base_plane(plotter, all_coords_for_map, texture_map, epsg_source):
     """
     Generates and adds the textured base plane to the renderer.
 
@@ -202,6 +205,9 @@ def add_base_plane(plotter, all_coords_for_map, texture_map):
         List of coordinates for the base map.
     texture_map : bool
         Indicates whether to add a texture to the base plane.
+    epsg_source:str
+        The EPSG code of the coordinate system to convert from.
+                Example: "EPSG:25829"
 
     Returns
     -------
@@ -210,13 +216,13 @@ def add_base_plane(plotter, all_coords_for_map, texture_map):
     """
     if texture_map and all_coords_for_map:
         pad = 30
-        base_plane, texture, center_xy = draw_base_map(all_coords_for_map, pad)
+        base_plane, texture, center_xy = draw_base_map(all_coords_for_map, epsg_source, pad)
         plotter.add_mesh(base_plane, texture=texture)
         return center_xy
     return np.mean(all_coords_for_map, axis=0) if all_coords_for_map else (0, 0)
 
 
-def calculate_and_add_shadows(plotter, combined_mesh, all_buildings_footprints, center_xy, dt, gml_file_path, remove_bases=True):
+def calculate_and_add_shadows(plotter, combined_mesh, all_buildings_footprints, center_xy, dt, gml_file_path, epsg_source, remove_bases=True):
     """
     Calculates shadows and adds them to the renderer.
 
@@ -232,19 +238,35 @@ def calculate_and_add_shadows(plotter, combined_mesh, all_buildings_footprints, 
         Central coordinates to calculate the sunlight direction.
     dt : pd.Timestamp
         Date and time to calculate the sun's position.
+    gml_file_path : str
+        Path to the GML file.
+    epsg_source : str
+        The EPSG code of the coordinate system to convert from.
+                Example: "EPSG:25829"
     remove_bases : bool, optional
         Indicates whether to remove the bases of the shadows. Default is True.
     """
     if dt:
-        sunlight_direction = get_sulight_vector(center_xy[0], center_xy[1], dt, convert_coords=True)
+        print("Calculating sun position...")
+        sunlight_direction = get_sulight_vector(center_xy[0], center_xy[1], dt, epsg_source, convert_coords=True)
+
+        print("Calculating shadows...")
+        start_time = time()
         shadow_mesh = process_shadows(combined_mesh, sunlight_direction)
+        end_time = time()
+        print(f"Shadow calculation completed in {end_time - start_time:.2f} seconds.")
         
+        print("Saving shadows to GeoJSON...")
+        start_time = time()
         save_shadows_to_geojson(
             shadow_mesh,
             f"./data/shadow_geojson/{splitext(basename(gml_file_path))[0]}_{sunlight_direction[0]}_{sunlight_direction[1]}_{sunlight_direction[2]}.geojson",
             all_buildings_footprints,
+            epsg_source,
             remove_bases=remove_bases
         )
+        end_time = time()
+        print(f"GeoJSON saved in {end_time - start_time:.2f} seconds.")
         
         plotter.add_mesh(shadow_mesh, color="gray", opacity=1, show_edges=False, label="Shadows")
 
@@ -291,6 +313,8 @@ def gml_3d_from_file(gml_file_path, dt, texture_map=True):
             "gml": "http://www.opengis.net/gml/3.2",
             "bu-ext2d": "http://inspire.jrc.ec.europa.eu/schemas/bu-ext2d/2.0"
         }
+        epsg_source = root.find(".//gml:Surface", ns).attrib.get("srsName", "").split(":")[-1] # Assume all the coordinates are in the same EPSG in the file.
+        epsg_source = f"EPSG:{epsg_source}"
 
         # Load or process buildings
         combined_mesh, footprints_polygons, all_coords_for_map = load_or_process_buildings(gml_file_path, root, ns)
@@ -302,14 +326,15 @@ def gml_3d_from_file(gml_file_path, dt, texture_map=True):
         plotter = pv.Plotter()
 
         # Add the base plane
-        center_xy = add_base_plane(plotter, all_coords_for_map, texture_map)
+        center_xy = add_base_plane(plotter, all_coords_for_map, texture_map, epsg_source)
 
         # Calculate and add shadows
         # Shadows coinciding with the building bases are not removed
         # But you can set the parameter remove_bases to True to remove them
-        calculate_and_add_shadows(plotter, combined_mesh, all_buildings_footprints, center_xy, dt, gml_file_path, remove_bases=True)
+        calculate_and_add_shadows(plotter, combined_mesh, all_buildings_footprints, center_xy, dt, gml_file_path, epsg_source, remove_bases=True)
 
         # Render the scene
+        print("Rendering scene...")
         render_scene(plotter, combined_mesh, dt)
 
     except ET.ParseError as e:

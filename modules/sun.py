@@ -2,7 +2,7 @@ from pvlib.solarposition import get_solarposition
 import pandas as pd
 from zoneinfo import ZoneInfo
 import numpy as np
-from .coordinates import convert_coordinates_25829_to_4326
+from .coordinates import convert_coordinates_EPSG_to_4326
 
 def get_zenith_azimuth(lat, lon, datetime):
     """
@@ -51,11 +51,12 @@ def light_angles2vec(azimuth_ang, zenith_angle):
     
     return np.round(np.array([x, y, z]), 3)
 
-def get_sulight_vector(x, y, dt, convert_coords):
+def get_sulight_vector(x, y, dt, epsg_source, convert_coords):
     """
     Get the light vector pointing to the origin of the system given the
-    coordinates in EPSG:25829 (set convert_coords= True) or in EPSG:4326
-    (set convert_coords= False), the location, and the datetime. Assumes z=0.
+    coordinates in EPSG:25829 or other (set convert_coords= True)
+    If the coordinates are in EPSG:4326 (set convert_coords= False).
+    The location, and the datetime are also needed. Assumes z=0.
 
     Parameters
     ----------
@@ -66,6 +67,9 @@ def get_sulight_vector(x, y, dt, convert_coords):
     dt : pandas.Timestamp
         Datetime of the calculation.
         Indicate the timezone with tz=ZoneInfo({timezone}).
+    epsg_source : str
+        EPSG code of the source coordinate system.
+        It should be 'EPSG:25829' or 'EPSG:4326'.
     convert_coords : bool
         If True, convert coordinates from EPSG:25829 to EPSG:4326.
         If False, use the coordinates as they are in EPSG:4326.
@@ -79,7 +83,7 @@ def get_sulight_vector(x, y, dt, convert_coords):
     # Convert the coordinates from EPSG:25829 to EPSG:4326
     if convert_coords:
         # Convert coordinates from EPSG:25829 to EPSG:4326
-        lon, lat = convert_coordinates_25829_to_4326(x, y)
+        lon, lat = convert_coordinates_EPSG_to_4326(x, y, epsg_source)
     else:
         # Use the coordinates as they are in EPSG:4326
         lon = x

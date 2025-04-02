@@ -3,8 +3,10 @@ from shapely.geometry import Polygon, MultiPolygon, mapping
 import numpy as np
 import json
 from shapely.ops import unary_union
+from time import time
 
-from .coordinates import convert_multipolygon_coordinates_25829_to_4326 
+from .coordinates import convert_multipolygon_coordinates_EPSG_to_4326 
+from tqdm import tqdm
 
 def polydata_to_shapely(poly: pv.PolyData) -> MultiPolygon:
     """
@@ -83,16 +85,16 @@ def project_mesh_onto_z0(mesh: pv.PolyData, direction: np.ndarray) -> pv.PolyDat
     if direction[2] == 0:
         raise ValueError("The z component of the projection vector is zero. Cannot project onto z=0.")
 
-    original_points = mesh.points.copy()
-    shadow_points = []
+    # Vectorized computation for projection
+    # formula: shadow_points = original_points + t * direction
+    # where t = -original_points[:, 2] / direction[2]
+    # This computes the intersection of the line defined by the direction vector with the z=0 plane.
+    # The direction vector is assumed to be normalized.
+    original_points = mesh.points
+    t = -original_points[:, 2] / direction[2]
+    shadow_points = original_points + t[:, np.newaxis] * direction
+    
 
-    for p in original_points:
-        # Parametric equation: p + t * direction, and we solve for t such that p.z + t * dz = 0
-        t = -p[2] / direction[2]
-        p_proj = p + t * direction
-        shadow_points.append(p_proj)
-
-    shadow_points = np.array(shadow_points)
     # Generates the new mesh with the same connectivity without merging the faces.
     shadow_mesh = pv.PolyData(shadow_points, mesh.faces)
     return shadow_mesh
@@ -103,16 +105,29 @@ def process_shadows(buildings_combined_mesh: pv.PolyData, sunlight_direction: np
     """
     # Projects the mesh onto z=0
     shadow_mesh = project_mesh_onto_z0(buildings_combined_mesh, sunlight_direction)
-    shadow_mesh = shadow_mesh.triangulate().clean()
 
     return shadow_mesh
 
-def save_shadows_to_geojson(shadow_mesh, file_path, all_buildings_bases, remove_bases):
+def save_shadows_to_geojson(shadow_mesh, file_path, all_buildings_bases, epsg_source, remove_bases):
     """
     Saves the projected shadows to a GeoJSON file.
     Merges overlapping polygons while preserving inner rings (holes).
-    Converts coordinates from EPSG:25829 to EPSG:4326.
+    Converts coordinates from EPSG:***** to EPSG:4326.
+
+    Arguments
+    ---------
+    shadow_mesh : pv.PolyData
+        The projected shadows mesh.
+    file_path : str
+        The path to save the GeoJSON file.
+    all_buildings_bases : pv.PolyData
+        The base mesh of all buildings.
+    epsg_source : str
+        The EPSG code of the coordinate system of the input mesh.
+    remove_bases : bool
+        Whether to remove the base of the buildings from the shadows.
     """
+    
     shadow_polygons = polydata_to_shapely(shadow_mesh)
 
     # Merges overlapping polygons while preserving inner rings (holes)
@@ -122,7 +137,7 @@ def save_shadows_to_geojson(shadow_mesh, file_path, all_buildings_bases, remove_
         merged = merged.difference(all_buildings_bases)
 
     # Sets the reference system to EPSG:4326 and converts to GeoJSON
-    merged_4326 = convert_multipolygon_coordinates_25829_to_4326(merged)
+    merged_4326 = convert_multipolygon_coordinates_EPSG_to_4326(merged, epsg_source)
     geojson_dict = mapping(merged_4326)
 
     with open(file_path, 'w') as f:

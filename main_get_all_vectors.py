@@ -2,7 +2,7 @@ import pandas as pd
 from zoneinfo import ZoneInfo
 from pvlib.solarposition import sun_rise_set_transit_ephem
 from modules.sun import get_sulight_vector
-from modules.coordinates import convert_coordinates_25829_to_4326
+from modules.coordinates import convert_coordinates_EPSG_to_4326
 from tqdm import tqdm
 from multiprocessing import Pool, cpu_count
 import pickle as pkl
@@ -12,6 +12,7 @@ import os
 # GLOBAL VARIABLES
 YEAR = 2025
 ALL_COORDS_PATH = "./data/processed_files/candon_all_coords_for_map.pkl"
+epsg_source = "EPSG:25830"  # CHANGE THIS TO THE EPSG CODE OF THE COORDINATES IN THE GML FILE
 
 ### To execute this script, it is necessary to have a precomputed `all_coords_for_map.pkl`
 ### file for the town or building of interest. This file is used to determine the center
@@ -25,7 +26,7 @@ if not os.path.exists(ALL_COORDS_PATH):
 all_coords = pkl.load(open(ALL_COORDS_PATH, "rb")) 
 
 center_xy = np.mean(all_coords, axis=0) if all_coords else (0, 0)
-longitude, latitude = convert_coordinates_25829_to_4326(center_xy[0], center_xy[1])
+longitude, latitude = convert_coordinates_EPSG_to_4326(center_xy[0], center_xy[1], epsg_source)
 
 
 ## For each day of the year, get the sun rise and sun set times (based on the timezone of the location) ##

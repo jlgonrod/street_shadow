@@ -7,16 +7,16 @@ from zoneinfo import ZoneInfo
 #GML_FILE_PATH = f"./data/gml/buildings/Building_{ref}.gml"
 
 # Get the GML file path for a town
-name = "candon"
+name = "beas"
 GML_FILE_PATH = f"./data/gml/towns/{name}.gml"
 
 # Set the datetime to calculate the shadows based on the sun position
 dt_sample = pd_Timestamp(
     year=2025,
-    month=3,
-    day=17,
-    hour=13,
-    minute=15,
+    month=4,
+    day=1,
+    hour=9,
+    minute=30,
     second=0,
     tz=ZoneInfo('Europe/Madrid') # It cares about the change of hour in summer and winter in Spain
 )

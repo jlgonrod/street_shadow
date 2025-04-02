@@ -5,7 +5,7 @@ from PIL import Image
 import pyvista as pv
 import io
 import numpy as np
-from .coordinates import convert_coordinates_arrays_25829_to_4326, get_square_coords_from_coords
+from .coordinates import convert_coordinates_arrays_EPSG_to_4326, get_square_coords_from_coords
 
 def get_min_max_coords(lon1, lat1, lon2, lat2):
     """
@@ -125,7 +125,7 @@ def parse_image_map(image):
     img = Image.open(io.BytesIO(image))
     return img
 
-def get_image_from_coords(coords_gml):
+def get_image_from_coords(coords_gml, epsg_source):
     """
     This function plots a static image from Mapbox API based on a list of coordinates
     obtained from a GML file and saves the image in a file.
@@ -150,7 +150,7 @@ def get_image_from_coords(coords_gml):
     coords_min_max = np.array([min_coords, max_coords])
 
     # Convert the coordinates to EPSG:4326
-    coords_min_max = convert_coordinates_arrays_25829_to_4326(coords_min_max)
+    coords_min_max = convert_coordinates_arrays_EPSG_to_4326(coords_min_max, epsg_source)
 
     # Reorder from [[lon, lat]] to [[lat, lon]]
     coords_min_max = np.array([[coords_min_max[0][1], coords_min_max[0][0]], [coords_min_max[1][1], coords_min_max[1][0]]])
@@ -161,11 +161,13 @@ def get_image_from_coords(coords_gml):
 
     # Save the image in a temporary file
     save_path = "./data/temp/map_image.png"
+    if not os.path.exists(os.path.dirname(save_path)):
+        os.makedirs(os.path.dirname(save_path))
     img.save(save_path)
 
     return save_path
 
-def draw_base_map(list_coords, pad=0):
+def draw_base_map(list_coords, epsg_source, pad=0):
     """
     This function creates a base plane that will be used to contain the image
     and loads the image as a texture.
@@ -175,7 +177,8 @@ def draw_base_map(list_coords, pad=0):
     list_coords : list
         A list of coordinates that define a polygon in EPSG:25829
         with the form [[lon1, lat1], [lon2, lat2], ...]
-
+    epsg_source (str): The EPSG code of the coordinate system to convert to.
+        Example: "EPSG:25829"
     pad : float, optional
         Padding to add to the bounding box, by default 0.
 
@@ -196,6 +199,7 @@ def draw_base_map(list_coords, pad=0):
     coords_min_max = np.array([[min_x, min_y], [max_x, max_y]])
 
     # Add padding to the bounding box
+    pad = float(pad) # Convert to float to avoid errors
     coords_min_max[0] -= pad
     coords_min_max[1] += pad
 
@@ -216,7 +220,7 @@ def draw_base_map(list_coords, pad=0):
     base_plane.texture_map_to_plane(inplace=True)
 
     # Get the image from the Mapbox API and save it in the temporary path
-    map_img_path = get_image_from_coords(coords_min_max)
+    map_img_path = get_image_from_coords(coords_min_max, epsg_source)
 
     # Load the image as a texture
     texture = pv.read_texture(map_img_path)
