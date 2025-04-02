@@ -10,27 +10,21 @@ from tqdm import tqdm
 
 def polydata_to_shapely(poly: pv.PolyData) -> MultiPolygon:
     """
-    Converts a pv.PolyData (2D at z=0) to a Shapely MultiPolygon.
-    Extracts the polygons without merging them.
+    Converts pv.PolyData (2D at z=0) to Shapely MultiPolygon.
+    Extracts polygons without merging. Optimized for performance.
     """
-    if poly.n_cells < 1:
+    if poly.n_cells == 0:
         return MultiPolygon()
 
-    faces = poly.faces.reshape(-1, 4)[:, 1:]
+    # Extracts faces and points
+    faces = poly.faces.reshape((-1, 4))[:, 1:]
     points = poly.points[:, :2]
 
-    polygons = []
-    for face in faces:
-        ring_coords = points[face]
-        shp_poly = Polygon(ring_coords)
-        if shp_poly.is_valid and shp_poly.area > 0:
-            polygons.append(shp_poly)
+    # Creates polygons and filters invalid or zero-area ones
+    polygons = [Polygon(points[face]) for face in faces]
+    valid_polygons = [p for p in polygons if p.is_valid and p.area > 0]
 
-    if not polygons:
-        return MultiPolygon()
-
-    # Returns the polygons without merging them.
-    return MultiPolygon(polygons)
+    return MultiPolygon(valid_polygons) if valid_polygons else MultiPolygon()
 
 def shapely_to_polydata(shp_geom) -> pv.PolyData:
     """
