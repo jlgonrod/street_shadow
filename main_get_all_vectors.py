@@ -1,97 +1,123 @@
+import os
+import pickle as pkl
+from multiprocessing import Pool, cpu_count
+
+import numpy as np
 import pandas as pd
 from zoneinfo import ZoneInfo
-from pvlib.solarposition import sun_rise_set_transit_ephem
-from modules.sun import get_sulight_vector
-from modules.coordinates import convert_coordinates_EPSG_to_4326
 from tqdm import tqdm
-from multiprocessing import Pool, cpu_count
-import pickle as pkl
-import numpy as np
-import os
 
-# GLOBAL VARIABLES
+# Third-party packages
+from pvlib.solarposition import sun_rise_set_transit_ephem
+
+# Internal modules
+from modules.coordinates import convert_coordinates_EPSG_to_4326
+from modules.sun import get_sulight_vector
+
+# GLOBAL CONFIGURATION
 YEAR = 2025
-ALL_COORDS_PATH = "./data/processed_files/candon_all_coords_for_map.pkl"
-epsg_source = "EPSG:25830"  # CHANGE THIS TO THE EPSG CODE OF THE COORDINATES IN THE GML FILE
+CITY = "malaga"
+EPSG_SOURCE = "EPSG:25830"
+FREQ = '1h'
+TIMEZONE = 'Europe/Madrid'
+OUTPUT_DIR = './data/sun_vectors'
 
-### To execute this script, it is necessary to have a precomputed `all_coords_for_map.pkl`
-### file for the town or building of interest. This file is used to determine the center
-### coordinates of the building or observation point for calculating the sun vectors.
-### If the file is not available, can be generated executing the script main_gml_2_3D.py
+ALL_COORDS_PATH = f"./data/processed_files/{CITY}_all_coords_for_map.pkl"
 
-# Load the coordinates from the pickle file and get the center coordinates
-if not os.path.exists(ALL_COORDS_PATH):
-    raise FileNotFoundError(f"File {ALL_COORDS_PATH} not found. Please generate it first excuting the script main_gml_2_3D.py")
+def load_coordinates(filepath):
+    """Carga las coordenadas y calcula el punto central."""
+    if not os.path.exists(filepath):
+        raise FileNotFoundError(
+            f"File {filepath} not found. Please generate it first by executing main_gml_2_3D.py"
+        )
+    all_coords = pkl.load(open(filepath, "rb"))
+    center_xy = np.mean(all_coords, axis=0) if all_coords else (0, 0)
+    return center_xy
 
-all_coords = pkl.load(open(ALL_COORDS_PATH, "rb")) 
-
-center_xy = np.mean(all_coords, axis=0) if all_coords else (0, 0)
-longitude, latitude = convert_coordinates_EPSG_to_4326(center_xy[0], center_xy[1], epsg_source)
-
-
-## For each day of the year, get the sun rise and sun set times (based on the timezone of the location) ##
-# Create a DatetimeIndex for all days of the year
-date_range = pd.date_range(
-    start=f'{YEAR}-01-01',
-    end=f'{YEAR}-12-31',
-    freq='D',
-    tz=ZoneInfo('Europe/Madrid')  # Localize to Madrid timezone
-)
-
-# Calculate sun rise and set times for each day
-sun_times = sun_rise_set_transit_ephem(
-    date_range,
-    latitude,
-    longitude,
-).drop(columns=['transit'])  # keep only sunrise and sunset times
-
-# Round to second precision
-sun_times['sunrise'] = sun_times['sunrise'].dt.ceil('s')
-sun_times['sunset'] = sun_times['sunset'].dt.ceil('s')
-
-## Get each instant of time between sunrise and sunset with the desired frequency ##
-freq = '1min'  # CHANGE THIS TO THE DESIRED FREQUENCY
-sun_times_list = []
-
-for index, row in sun_times.iterrows():
-    # Create a date range for each second between sunrise and sunset
-    daily_range = pd.date_range(
-        start=row['sunrise'],
-        end=row['sunset'],
-        freq=freq,
-        tz=ZoneInfo('Europe/Madrid')  # Localize to Madrid timezone, CHANGE THIS TO THE DESIRED TIMEZONE
+def get_date_range(year, tz):
+    """Genera un rango de fechas para todos los días del año."""
+    return pd.date_range(
+        start=f'{year}-01-01',
+        end=f'{year}-12-31',
+        freq='D',
+        tz=ZoneInfo(tz)
     )
-    
-    # Append the daily range to the list
-    sun_times_list.append(daily_range)
 
-## Get the sert of unique sun light vectors for each second of the year ##
-sun_vectors = set()
+def get_sun_times(date_range, latitude, longitude):
+    """Calcula y redondea los tiempos de amanecer y atardecer."""
+    sun_times = sun_rise_set_transit_ephem(date_range, latitude, longitude).drop(columns=['transit'])
+    sun_times['sunrise'] = sun_times['sunrise'].dt.ceil('s')
+    sun_times['sunset'] = sun_times['sunset'].dt.ceil('s')
+    return sun_times
 
-def process_daily_range(daily_range):
+def generate_daily_ranges(sun_times):
+    """Genera intervalos de tiempo entre amanecer y atardecer y retorna además sunrise y sunset."""
+    ranges = []
+    for _, row in sun_times.iterrows():
+        daily_range = pd.date_range(
+            start=row['sunrise'],
+            end=row['sunset'],
+            freq=FREQ,
+            tz=ZoneInfo(TIMEZONE)
+        )
+        ranges.append((daily_range, row['sunrise'], row['sunset']))
+    return ranges
+
+def process_daily_range(daily_range, sunrise, sunset, longitude, latitude):
+    """Calcula los vectores de luz únicos para un rango diario, ignorando instantes no visibles."""
     daily_vectors = set()
     for dt in daily_range:
-        # Get the light vector for each second
+        if dt <= sunrise or dt >= sunset:
+            continue
         x, y, z = get_sulight_vector(
             x=longitude,
             y=latitude,
             dt=dt,
-            convert_coords=False  # Coordinates already in EPSG:4326
+            epsg_source=EPSG_SOURCE,
+            convert_coords=False
         )
-        daily_vectors.add((x, y, z))  # Use a tuple to ensure uniqueness
+        daily_vectors.add((x, y, z))
     return daily_vectors
 
+def process_daily_range_wrapper(args):
+    # Función wrapper para evitar pickling de lambdas.
+    daily_range, sunrise, sunset, longitude, latitude = args
+    return process_daily_range(daily_range, sunrise, sunset, longitude, latitude)
+
 if __name__ == '__main__':
-    # Use multiprocessing to parallelize the computation
+    center_xy = load_coordinates(ALL_COORDS_PATH)
+    longitude, latitude = convert_coordinates_EPSG_to_4326(center_xy[0], center_xy[1], EPSG_SOURCE)
+    
+    date_range = get_date_range(YEAR, TIMEZONE)
+    sun_times = get_sun_times(date_range, latitude, longitude)
+    
+    # Guardar CSV con datos de sunrise y sunset en columnas separadas
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    sun_times_output_path = f'{OUTPUT_DIR}/sun_times_{CITY}_{YEAR}.csv'
+    formatted_sun_times = pd.DataFrame({
+        'date': sun_times['sunrise'].dt.strftime('%Y-%m-%d'),
+        'sunrise': sun_times['sunrise'].dt.strftime('%H:%M:%S'),
+        'sunset': sun_times['sunset'].dt.strftime('%H:%M:%S')
+    })
+    formatted_sun_times.to_csv(sun_times_output_path, index=False)
+    print(f"Sun times saved to {sun_times_output_path}")
+    
+    daily_ranges = generate_daily_ranges(sun_times)
+    
+    # Procesamiento en paralelo utilizando todos los núcleos disponibles
     with Pool(cpu_count()) as pool:
-        results = list(tqdm(pool.imap(process_daily_range, sun_times_list), 
-                            desc="Processing daily ranges", 
-                            total=len(sun_times_list)))
+        tasks = [(dr, sr, ss, longitude, latitude) for (dr, sr, ss) in daily_ranges]
+        results = list(tqdm(
+            pool.imap(process_daily_range_wrapper, tasks),
+            desc="Processing daily ranges",
+            total=len(daily_ranges)
+        ))
 
-    # Combine the sets of results to ensure uniqueness
-    for daily_vectors in results:
-        sun_vectors.update(daily_vectors)
-
-    # Save the values in a csv file use the year and loc in the name
-    sun_vectors_df = pd.DataFrame(list(sun_vectors), columns=['x', 'y', 'z'])
-    sun_vectors_df.to_csv(f'./data/sun_vectors/sun_vectors_{YEAR}_{latitude}_{longitude}.csv', index=False)
+    sun_vectors = set()
+    for vectors in results:
+        sun_vectors.update(vectors)
+    
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    output_path = f'{OUTPUT_DIR}/sun_vectors_{CITY}_{YEAR}.csv'
+    pd.DataFrame(list(sun_vectors), columns=['x', 'y', 'z']).to_csv(output_path, index=False)
+    print(f"Sunlight vectors saved to {output_path}")
