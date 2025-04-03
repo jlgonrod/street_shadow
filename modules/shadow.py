@@ -7,6 +7,7 @@ from time import time
 from tqdm import tqdm
 from multiprocessing import Pool, cpu_count
 from .coordinates import convert_multipolygon_coordinates_EPSG_to_4326
+import cupy as cp
 
 def polydata_to_shapely(poly: pv.PolyData) -> MultiPolygon:
     """
@@ -134,6 +135,45 @@ def parallel_unary_union(multi_polygon, num_processes=None):
     # Perform unary_union on each chunk in parallel
     with Pool(processes=num_processes) as pool:
         partial_results = pool.map(unary_union, chunks)
+
+    # Merge the partial results sequentially
+    return unary_union(partial_results)
+
+def gpu_parallel_unary_union(multi_polygon, num_chunks=8):
+    """
+    Performs a GPU-accelerated unary union on a MultiPolygon by dividing it into chunks.
+
+    Parameters
+    ----------
+    multi_polygon : MultiPolygon
+        A Shapely MultiPolygon to merge.
+    num_chunks : int, optional
+        Number of chunks to divide the polygons into for parallel processing.
+
+    Returns
+    -------
+    MultiPolygon
+        The merged MultiPolygon.
+    """
+    if multi_polygon.is_empty or len(multi_polygon.geoms) == 0:
+        return MultiPolygon()
+
+    # Extract individual polygons
+    polygons = list(multi_polygon.geoms)
+
+    # Split polygons into chunks
+    chunk_size = max(1, len(polygons) // num_chunks)
+    chunks = [polygons[i:i + chunk_size] for i in range(0, len(polygons), chunk_size)]
+
+    # Transfer chunks to GPU
+    gpu_chunks = [cp.asarray(chunk) for chunk in chunks]
+
+    # Perform unary_union on each chunk in parallel on the GPU
+    partial_results = []
+    for chunk in gpu_chunks:
+        # Transfer back to CPU for Shapely processing (Shapely is CPU-bound)
+        cpu_chunk = [Polygon(p) for p in cp.asnumpy(chunk)]
+        partial_results.append(unary_union(cpu_chunk))
 
     # Merge the partial results sequentially
     return unary_union(partial_results)
