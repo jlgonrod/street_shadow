@@ -27,6 +27,28 @@ def polydata_to_shapely(poly: pv.PolyData) -> MultiPolygon:
 
     return MultiPolygon(valid_polygons) if valid_polygons else MultiPolygon()
 
+def polydata_to_shapely_gpu(poly: pv.PolyData) -> MultiPolygon:
+    """
+    Optimized version of polydata_to_shapely using CuPy for GPU acceleration.
+    Converts pv.PolyData (2D at z=0) to Shapely MultiPolygon.
+    """
+    if poly.n_cells == 0:
+        return MultiPolygon()
+
+    # Extract faces and points using CuPy
+    faces = cp.asarray(poly.faces).reshape((-1, 4))[:, 1:]
+    points = cp.asarray(poly.points[:, :2])
+
+    # Create polygons and filter invalid or zero-area ones
+    polygons = []
+    for face in faces:
+        coords = cp.asnumpy(points[face])  # Transfer back to CPU for Shapely
+        polygon = Polygon(coords)
+        if polygon.is_valid and polygon.area > 0:
+            polygons.append(polygon)
+
+    return MultiPolygon(polygons) if polygons else MultiPolygon()
+
 def shapely_to_polydata(shp_geom) -> pv.PolyData:
     """
     Converts a Shapely geometry (Polygon or MultiPolygon) to a pv.PolyData.
@@ -197,19 +219,38 @@ def save_shadows_to_geojson(shadow_mesh, file_path, all_buildings_bases, epsg_so
     remove_bases : bool
         Whether to remove the base of the buildings from the shadows.
     """
+    start_time = time()
     shadow_polygons = polydata_to_shapely(shadow_mesh)
+    end_time = time()
+    print(f"\tConversion to Shapely took {end_time - start_time:.2f} seconds.")
 
     # Use parallel unary union
+    start_time = time()
     merged = parallel_unary_union(shadow_polygons)
+    end_time = time()
+    print(f"\tParallel unary union took {end_time - start_time:.2f} seconds.")
 
     if remove_bases and all_buildings_bases:
+        start_time = time()
         merged = merged.difference(all_buildings_bases)
+        end_time = time()
+        print(f"\tRemoving bases took {end_time - start_time:.2f} seconds.")
 
     # Sets the reference system to EPSG:4326 and converts to GeoJSON
+    start_time = time()
     merged_4326 = convert_multipolygon_coordinates_EPSG_to_4326(merged, epsg_source)
-    geojson_dict = mapping(merged_4326)
+    end_time = time()
+    print(f"\tCoordinate conversion took {end_time - start_time:.2f} seconds.")
 
+    start_time = time()
+    geojson_dict = mapping(merged_4326)
+    end_time = time()
+    print(f"\tMapping to GeoJSON took {end_time - start_time:.2f} seconds.")
+
+    start_time = time()
     with open(file_path, 'w') as f:
         json.dump(geojson_dict, f)
+    end_time = time()
+    print(f"\tSaving GeoJSON took {end_time - start_time:.2f} seconds.")
 
     return file_path
