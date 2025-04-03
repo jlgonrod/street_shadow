@@ -139,7 +139,7 @@ def parallel_unary_union(multi_polygon, num_processes=None):
     # Merge the partial results sequentially
     return unary_union(partial_results)
 
-def save_shadows_to_geojson(shadow_mesh, file_path, all_buildings_bases, epsg_source, remove_bases):
+def save_shadows_to_geojson(shadow_mesh, file_path, all_buildings_bases, epsg_source, remove_bases, verbose=True):
     """
     Saves the projected shadows to a GeoJSON file.
     Merges overlapping polygons while preserving inner rings (holes).
@@ -157,39 +157,47 @@ def save_shadows_to_geojson(shadow_mesh, file_path, all_buildings_bases, epsg_so
         The EPSG code of the coordinate system of the input mesh.
     remove_bases : bool
         Whether to remove the base of the buildings from the shadows.
+    verbose : bool, optional
+        Whether to print timing information. Defaults to True.
     """
     start_time = time()
     shadow_polygons = polydata_to_shapely(shadow_mesh)
     end_time = time()
-    print(f"\tConversion to Shapely took {end_time - start_time:.2f} seconds.")
+    if verbose:
+        print(f"\tConversion to Shapely took {end_time - start_time:.2f} seconds.")
 
     # Use parallel unary union
     start_time = time()
     merged = parallel_unary_union(shadow_polygons)
     end_time = time()
-    print(f"\tParallel unary union took {end_time - start_time:.2f} seconds.")
+    if verbose:
+        print(f"\tParallel unary union took {end_time - start_time:.2f} seconds.")
 
     if remove_bases and all_buildings_bases:
         start_time = time()
         merged = merged.difference(all_buildings_bases)
         end_time = time()
-        print(f"\tRemoving bases took {end_time - start_time:.2f} seconds.")
+        if verbose:
+            print(f"\tRemoving bases took {end_time - start_time:.2f} seconds.")
 
     # Sets the reference system to EPSG:4326 and converts to GeoJSON
     start_time = time()
     merged_4326 = convert_multipolygon_coordinates_EPSG_to_4326(merged, epsg_source)
     end_time = time()
-    print(f"\tCoordinate conversion took {end_time - start_time:.2f} seconds.")
+    if verbose:
+        print(f"\tCoordinate conversion took {end_time - start_time:.2f} seconds.")
 
     start_time = time()
     geojson_dict = mapping(merged_4326)
     end_time = time()
-    print(f"\tMapping to GeoJSON took {end_time - start_time:.2f} seconds.")
+    if verbose:
+        print(f"\tMapping to GeoJSON took {end_time - start_time:.2f} seconds.")
 
     start_time = time()
     with open(file_path, 'w') as f:
         json.dump(geojson_dict, f)
     end_time = time()
-    print(f"\tSaving GeoJSON took {end_time - start_time:.2f} seconds.")
+    if verbose:
+        print(f"\tSaving GeoJSON took {end_time - start_time:.2f} seconds.")
 
     return file_path
