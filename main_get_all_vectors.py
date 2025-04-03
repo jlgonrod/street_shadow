@@ -15,12 +15,13 @@ from modules.coordinates import convert_coordinates_EPSG_to_4326
 from modules.sun import get_sulight_vector
 
 # GLOBAL CONFIGURATION
-YEAR = 2025
 CITY = "malaga"
 EPSG_SOURCE = "EPSG:25830"
-FREQ = '1h'
+FREQ = '1min'
 TIMEZONE = 'Europe/Madrid'
 OUTPUT_DIR = './data/sun_vectors'
+START_DATE = "2025-06-01"
+END_DATE = "2025-06-01"
 
 ALL_COORDS_PATH = f"./data/processed_files/{CITY}_all_coords_for_map.pkl"
 
@@ -34,11 +35,11 @@ def load_coordinates(filepath):
     center_xy = np.mean(all_coords, axis=0) if all_coords else (0, 0)
     return center_xy
 
-def get_date_range(year, tz):
-    """Genera un rango de fechas para todos los días del año."""
+def get_date_range(start_date, end_date, tz):
+    """Genera un rango de fechas desde la fecha de inicio hasta la fecha de fin."""
     return pd.date_range(
-        start=f'{year}-01-01',
-        end=f'{year}-12-31',
+        start=start_date,
+        end=end_date,
         freq='D',
         tz=ZoneInfo(tz)
     )
@@ -88,12 +89,13 @@ if __name__ == '__main__':
     center_xy = load_coordinates(ALL_COORDS_PATH)
     longitude, latitude = convert_coordinates_EPSG_to_4326(center_xy[0], center_xy[1], EPSG_SOURCE)
     
-    date_range = get_date_range(YEAR, TIMEZONE)
+    # Se utiliza el rango de fechas definido por START_DATE y END_DATE
+    date_range = get_date_range(START_DATE, END_DATE, TIMEZONE)
     sun_times = get_sun_times(date_range, latitude, longitude)
     
     # Guardar CSV con datos de sunrise y sunset en columnas separadas
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    sun_times_output_path = f'{OUTPUT_DIR}/sun_times_{CITY}_{YEAR}.csv'
+    sun_times_output_path = f'{OUTPUT_DIR}/sun_times_{CITY}_{START_DATE}_{END_DATE}.csv'
     formatted_sun_times = pd.DataFrame({
         'date': sun_times['sunrise'].dt.strftime('%Y-%m-%d'),
         'sunrise': sun_times['sunrise'].dt.strftime('%H:%M:%S'),
@@ -118,6 +120,6 @@ if __name__ == '__main__':
         sun_vectors.update(vectors)
     
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    output_path = f'{OUTPUT_DIR}/sun_vectors_{CITY}_{YEAR}.csv'
+    output_path = f'{OUTPUT_DIR}/sun_vectors_{CITY}_{START_DATE}_{END_DATE}.csv'
     pd.DataFrame(list(sun_vectors), columns=['x', 'y', 'z']).to_csv(output_path, index=False)
     print(f"Sunlight vectors saved to {output_path}")
