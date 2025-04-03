@@ -27,28 +27,6 @@ def polydata_to_shapely(poly: pv.PolyData) -> MultiPolygon:
 
     return MultiPolygon(valid_polygons) if valid_polygons else MultiPolygon()
 
-def polydata_to_shapely_gpu(poly: pv.PolyData) -> MultiPolygon:
-    """
-    Optimized version of polydata_to_shapely using CuPy for GPU acceleration.
-    Converts pv.PolyData (2D at z=0) to Shapely MultiPolygon.
-    """
-    if poly.n_cells == 0:
-        return MultiPolygon()
-
-    # Extract faces and points using CuPy
-    faces = cp.asarray(poly.faces).reshape((-1, 4))[:, 1:]
-    points = cp.asarray(poly.points[:, :2])
-
-    # Create polygons and filter invalid or zero-area ones
-    polygons = []
-    for face in faces:
-        coords = cp.asnumpy(points[face])  # Transfer back to CPU for Shapely
-        polygon = Polygon(coords)
-        if polygon.is_valid and polygon.area > 0:
-            polygons.append(polygon)
-
-    return MultiPolygon(polygons) if polygons else MultiPolygon()
-
 def shapely_to_polydata(shp_geom) -> pv.PolyData:
     """
     Converts a Shapely geometry (Polygon or MultiPolygon) to a pv.PolyData.
