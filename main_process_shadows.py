@@ -13,8 +13,8 @@ from tqdm import tqdm
 
 # CONFIGURE YOUR PATHS HERE
 GML_FILE_PATH = "./data/gml/towns/candon.gml"
-SUN_VECTORS_CSV = "./data/sun_vectors/sun_vectors_candon_2025-06-01_2025-06-01.csv"
-REMOVE_BASES = False
+SUN_VECTORS_CSV = "./data/sun_vectors/sun_vectors_candon_2025-06-01T18:00:00_2025-06-01T18:15:00.csv"
+REMOVE_BASES = True
 
 if __name__ == "__main__":
     # Configuración de la fuente de datos
@@ -71,7 +71,7 @@ if __name__ == "__main__":
         # Se guarda como geojson
         save_shadows_to_geojson(
             shadow_mesh,
-             f"./data/shadow_geojson/{splitext(basename(GML_FILE_PATH))[0]}_{sun_vector[0]}_{sun_vector[1]}_{sun_vector[2]}.geojson",
+             f"./data/shadow_geojson/{splitext(basename(GML_FILE_PATH))[0]}/{splitext(basename(GML_FILE_PATH))[0]}_{sun_vector[0]}_{sun_vector[1]}_{sun_vector[2]}.geojson",
             all_buildings_footprints,
             epsg_source,
             remove_bases=REMOVE_BASES,

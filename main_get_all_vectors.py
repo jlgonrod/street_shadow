@@ -19,9 +19,9 @@ CITY = "malaga"
 EPSG_SOURCE = "EPSG:25830"
 FREQ = '1min'
 TIMEZONE = 'Europe/Madrid'
-OUTPUT_DIR = './data/sun_vectors'
-START_DATETIME = "2025-06-01 18:00:00"  # changed from START_DATE
-END_DATETIME = "2025-06-01 18:05:00"      # changed from END_DATE
+OUTPUT_DIR = f'./data/sun_vectors/{CITY}'
+START_DATETIME = "2025-06-01 16:00:00"  # changed from START_DATE
+END_DATETIME = "2025-06-01 16:05:00"      # changed from END_DATE
 
 ALL_COORDS_PATH = f"./data/processed_files/{CITY}_all_coords_for_map.pkl"
 
@@ -100,13 +100,17 @@ if __name__ == '__main__':
     # Guardar CSV con datos de sunrise y sunset en columnas separadas
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     sun_times_output_path = f'{OUTPUT_DIR}/sun_times_{CITY}_{START_DATETIME.split(" ")[0]}_{END_DATETIME.split(" ")[0]}.csv'
-    formatted_sun_times = pd.DataFrame({
-        'date': sun_times['sunrise'].dt.strftime('%Y-%m-%d'),
-        'sunrise': sun_times['sunrise'].dt.strftime('%H:%M:%S'),
-        'sunset': sun_times['sunset'].dt.strftime('%H:%M:%S')
-    })
-    formatted_sun_times.to_csv(sun_times_output_path, index=False)
-    print(f"Sun times saved to {sun_times_output_path}")
+    
+    if not os.path.exists(sun_times_output_path):
+        formatted_sun_times = pd.DataFrame({
+            'date': sun_times['sunrise'].dt.strftime('%Y-%m-%d'),
+            'sunrise': sun_times['sunrise'].dt.strftime('%H:%M:%S'),
+            'sunset': sun_times['sunset'].dt.strftime('%H:%M:%S')
+        })
+        formatted_sun_times.to_csv(sun_times_output_path, index=False)
+        print(f"Sun times saved to {sun_times_output_path}")
+    else:
+        print(f"Sun times file already exists at {sun_times_output_path}, skipping creation.")
     
     daily_ranges = generate_daily_ranges(sun_times)
     
