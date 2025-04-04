@@ -260,7 +260,7 @@ def calculate_and_add_shadows(plotter, combined_mesh, all_buildings_footprints, 
         start_time = time()
         save_shadows_to_geojson(
             shadow_mesh,
-            f"./data/shadow_geojson/{splitext(basename(gml_file_path))[0]}_{sunlight_direction[0]}_{sunlight_direction[1]}_{sunlight_direction[2]}.geojson",
+            f"./data/shadow_geojson/{splitext(basename(gml_file_path))[0]}/{splitext(basename(gml_file_path))[0]}_{sunlight_direction[0]}_{sunlight_direction[1]}_{sunlight_direction[2]}.geojson",
             all_buildings_footprints,
             epsg_source,
             remove_bases=remove_bases
