@@ -20,8 +20,8 @@ EPSG_SOURCE = "EPSG:25830"
 FREQ = '1min'
 TIMEZONE = 'Europe/Madrid'
 OUTPUT_DIR = './data/sun_vectors'
-START_DATE = "2025-06-01"
-END_DATE = "2025-06-01"
+START_DATETIME = "2025-06-01 18:00:00"  # changed from START_DATE
+END_DATETIME = "2025-06-01 18:05:00"      # changed from END_DATE
 
 ALL_COORDS_PATH = f"./data/processed_files/{CITY}_all_coords_for_map.pkl"
 
@@ -35,8 +35,10 @@ def load_coordinates(filepath):
     center_xy = np.mean(all_coords, axis=0) if all_coords else (0, 0)
     return center_xy
 
-def get_date_range(start_date, end_date, tz):
-    """Genera un rango de fechas desde la fecha de inicio hasta la fecha de fin."""
+def get_date_range(start_datetime, end_datetime, tz):
+    """Genera un rango de fechas (un día por entrada) usando la parte de fecha de los datetime."""
+    start_date = pd.to_datetime(start_datetime).date()
+    end_date = pd.to_datetime(end_datetime).date()
     return pd.date_range(
         start=start_date,
         end=end_date,
@@ -64,11 +66,13 @@ def generate_daily_ranges(sun_times):
         ranges.append((daily_range, row['sunrise'], row['sunset']))
     return ranges
 
-def process_daily_range(daily_range, sunrise, sunset, longitude, latitude):
-    """Calcula los vectores de luz únicos para un rango diario, ignorando instantes no visibles."""
+def process_daily_range(daily_range, sunrise, sunset, longitude, latitude, global_start, global_end):
+    """Calcula los vectores de luz únicos para un rango diario, ignorando instantes no visibles y fuera del rango global."""
     daily_vectors = set()
     for dt in daily_range:
         if dt <= sunrise or dt >= sunset:
+            continue
+        if dt < global_start or dt > global_end:
             continue
         x, y, z = get_sulight_vector(
             x=longitude,
@@ -82,20 +86,20 @@ def process_daily_range(daily_range, sunrise, sunset, longitude, latitude):
 
 def process_daily_range_wrapper(args):
     # Función wrapper para evitar pickling de lambdas.
-    daily_range, sunrise, sunset, longitude, latitude = args
-    return process_daily_range(daily_range, sunrise, sunset, longitude, latitude)
+    daily_range, sunrise, sunset, longitude, latitude, global_start, global_end = args
+    return process_daily_range(daily_range, sunrise, sunset, longitude, latitude, global_start, global_end)
 
 if __name__ == '__main__':
     center_xy = load_coordinates(ALL_COORDS_PATH)
     longitude, latitude = convert_coordinates_EPSG_to_4326(center_xy[0], center_xy[1], EPSG_SOURCE)
     
-    # Se utiliza el rango de fechas definido por START_DATE y END_DATE
-    date_range = get_date_range(START_DATE, END_DATE, TIMEZONE)
+    # Se utiliza el rango de fechas definido por START_DATETIME y END_DATETIME
+    date_range = get_date_range(START_DATETIME, END_DATETIME, TIMEZONE)
     sun_times = get_sun_times(date_range, latitude, longitude)
     
     # Guardar CSV con datos de sunrise y sunset en columnas separadas
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    sun_times_output_path = f'{OUTPUT_DIR}/sun_times_{CITY}_{START_DATE}_{END_DATE}.csv'
+    sun_times_output_path = f'{OUTPUT_DIR}/sun_times_{CITY}_{START_DATETIME.split(" ")[0]}_{END_DATETIME.split(" ")[0]}.csv'
     formatted_sun_times = pd.DataFrame({
         'date': sun_times['sunrise'].dt.strftime('%Y-%m-%d'),
         'sunrise': sun_times['sunrise'].dt.strftime('%H:%M:%S'),
@@ -106,9 +110,13 @@ if __name__ == '__main__':
     
     daily_ranges = generate_daily_ranges(sun_times)
     
+    # Definir el rango global de datetimes usando START_DATETIME y END_DATETIME
+    global_start = pd.Timestamp(START_DATETIME, tz=ZoneInfo(TIMEZONE))
+    global_end = pd.Timestamp(END_DATETIME, tz=ZoneInfo(TIMEZONE))
+    
     # Procesamiento en paralelo utilizando todos los núcleos disponibles
     with Pool(cpu_count()) as pool:
-        tasks = [(dr, sr, ss, longitude, latitude) for (dr, sr, ss) in daily_ranges]
+        tasks = [(dr, sr, ss, longitude, latitude, global_start, global_end) for (dr, sr, ss) in daily_ranges]
         results = list(tqdm(
             pool.imap(process_daily_range_wrapper, tasks),
             desc="Processing daily ranges",
@@ -120,6 +128,6 @@ if __name__ == '__main__':
         sun_vectors.update(vectors)
     
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    output_path = f'{OUTPUT_DIR}/sun_vectors_{CITY}_{START_DATE}_{END_DATE}.csv'
+    output_path = f'{OUTPUT_DIR}/sun_vectors_{CITY}_{START_DATETIME.replace(" ", "T")}_{END_DATETIME.replace(" ", "T")}.csv'
     pd.DataFrame(list(sun_vectors), columns=['x', 'y', 'z']).to_csv(output_path, index=False)
     print(f"Sunlight vectors saved to {output_path}")
