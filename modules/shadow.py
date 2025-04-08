@@ -4,12 +4,9 @@ import numpy as np
 import json
 from shapely.ops import unary_union
 from time import time
-from tqdm import tqdm
+import os
 from multiprocessing import Pool, cpu_count
 from .coordinates import convert_multipolygon_coordinates_EPSG_to_4326
-import cupy as cp
-import os
-
 def polydata_to_shapely(poly: pv.PolyData) -> MultiPolygon:
     """
     Converts pv.PolyData (2D at z=0) to Shapely MultiPolygon.
@@ -188,12 +185,14 @@ def save_shadows_to_geojson(shadow_mesh, file_path, all_buildings_bases, epsg_so
     if verbose:
         print(f"\tCoordinate conversion took {end_time - start_time:.2f} seconds.")
 
+    # Convert to GeoJSON format
     start_time = time()
     geojson_dict = mapping(merged_4326)
     end_time = time()
     if verbose:
         print(f"\tMapping to GeoJSON took {end_time - start_time:.2f} seconds.")
 
+    # Save to file
     start_time = time()
     os.makedirs(os.path.dirname(file_path), exist_ok=True) # Ensure the directory exists
     with open(file_path, 'w') as f:

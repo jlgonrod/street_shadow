@@ -12,9 +12,10 @@ from modules.shadow import process_shadows, save_shadows_to_geojson
 from tqdm import tqdm
 
 # CONFIGURE YOUR PATHS HERE
-GML_FILE_PATH = "./data/gml/towns/candon.gml"
-SUN_VECTORS_CSV = "./data/sun_vectors/sun_vectors_candon_2025-06-01T18:00:00_2025-06-01T18:15:00.csv"
+GML_FILE_PATH = "./data/gml/towns/malaga.gml"
+SUN_VECTORS_CSV = "./data/sun_vectors/malaga/sun_vectors_malaga_2025-06-01T18:00:00_2025-06-01T19:00:00.csv"
 REMOVE_BASES = True
+SAVE_PATH = f"/mnt/d/JLGon/Descargas/geojson_output/shadow_geojson/{splitext(basename(GML_FILE_PATH))[0]}/" # The files will be saved here.
 
 if __name__ == "__main__":
     # Configuración de la fuente de datos
@@ -41,7 +42,7 @@ if __name__ == "__main__":
     sun_vectors_df = pd.read_csv(SUN_VECTORS_CSV)
 
     # Recoger los geojson ya existentes para la ciudad
-    existing_files_pattern = f"./data/shadow_geojson/{splitext(basename(GML_FILE_PATH))[0]}_*.geojson"
+    existing_files_pattern = f"{SAVE_PATH}{splitext(basename(GML_FILE_PATH))[0]}_*.geojson"
     existing_files = glob(existing_files_pattern)
     existing_vectors = []
     for file in existing_files:
@@ -71,7 +72,7 @@ if __name__ == "__main__":
         # Se guarda como geojson
         save_shadows_to_geojson(
             shadow_mesh,
-             f"./data/shadow_geojson/{splitext(basename(GML_FILE_PATH))[0]}/{splitext(basename(GML_FILE_PATH))[0]}_{sun_vector[0]}_{sun_vector[1]}_{sun_vector[2]}.geojson",
+            f"{SAVE_PATH}{splitext(basename(GML_FILE_PATH))[0]}_{sun_vector[0]}_{sun_vector[1]}_{sun_vector[2]}.geojson",
             all_buildings_footprints,
             epsg_source,
             remove_bases=REMOVE_BASES,

@@ -20,8 +20,8 @@ EPSG_SOURCE = "EPSG:25830"
 FREQ = '1min'
 TIMEZONE = 'Europe/Madrid'
 OUTPUT_DIR = f'./data/sun_vectors/{CITY}'
-START_DATETIME = "2025-06-01 16:00:00"  # changed from START_DATE
-END_DATETIME = "2025-06-01 16:05:00"      # changed from END_DATE
+START_DATETIME = "2025-06-01 18:00:00"  # changed from START_DATE
+END_DATETIME = "2025-06-01 19:00:00"      # changed from END_DATE
 
 ALL_COORDS_PATH = f"./data/processed_files/{CITY}_all_coords_for_map.pkl"
 

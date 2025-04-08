@@ -14,10 +14,10 @@ if __name__ == "__main__":
     # Set the datetime to calculate the shadows based on the sun position
     dt_sample = pd_Timestamp(
         year=2025,
-        month=4,
-        day=1,
-        hour=9,
-        minute=30,
+        month=7,
+        day=15,
+        hour=18,
+        minute=50,
         second=0,
         tz=ZoneInfo('Europe/Madrid')  # It cares about the change of hour in summer and winter in Spain
     )
