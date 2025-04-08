@@ -107,3 +107,26 @@ def convert_multipolygon_coordinates_EPSG_to_4326(multipolygon, epsg_source):
         interiors_coords = [[transformer.transform(x, y) for x, y in interior.coords] for interior in polygon.interiors]
         converted_polygons.append(Polygon(exterior_coords, interiors_coords))
     return MultiPolygon(converted_polygons)
+
+def get_mesh_bounds_coords(mesh, epsg_source):
+    """
+    Get the bounds of a mesh and convert them to EPSG:4326.
+
+    Parameters
+    ----------
+    mesh : pyvista.PolyData
+        The mesh to get the bounds from.
+    epsg_source : str
+        The EPSG code of the coordinate system to convert from.
+        Example: "EPSG:25829"
+
+    Returns
+    -------
+    np.array
+        The bounds of the mesh in EPSG:4326.
+    """
+    min_x, max_x, min_y, max_y, *_ = mesh.bounds
+
+    bounds = np.array([[min_x, min_y], [max_x, max_y]])
+
+    return convert_coordinates_arrays_EPSG_to_4326(bounds, epsg_source)
