@@ -15,7 +15,7 @@ from tqdm import tqdm
 GML_FILE_PATH = "./data/gml/towns/malaga.gml"
 SUN_VECTORS_CSV = "./data/sun_vectors/malaga/sun_vectors_malaga_2025-06-01T18:00:00_2025-06-01T19:00:00.csv"
 REMOVE_BASES = True
-SAVE_PATH = f"/mnt/d/JLGon/Descargas/geojson_output/shadow_geojson/{splitext(basename(GML_FILE_PATH))[0]}/" # The files will be saved here.
+SAVE_PATH = f"/mnt/d/JLGon/Descargas/street_shadow_data/shadow_geojson/{splitext(basename(GML_FILE_PATH))[0]}/" # The files will be saved here.
 
 if __name__ == "__main__":
     # Configuración de la fuente de datos
@@ -51,6 +51,7 @@ if __name__ == "__main__":
         if len(parts) >= 4:
             existing_vectors.append({'x': float(parts[1]), 'y': float(parts[2]), 'z': float(parts[3])})
     existing_df = pd.DataFrame(existing_vectors)
+    print(f"Found {len(existing_df)} existing vectors in {SAVE_PATH}")
     
     # Eliminamos los vectores solares que ya existen del dataframe sun_vectors_df
     if not existing_df.empty:
@@ -62,7 +63,7 @@ if __name__ == "__main__":
 
         # Convertimos el vector a un array
         sun_vector = np.array([row["x"], row["y"], row["z"]])
-
+        print(sun_vector)
         # Creamos el plotter de pyvista
         plotter = pv.Plotter()
 
@@ -76,5 +77,5 @@ if __name__ == "__main__":
             all_buildings_footprints,
             epsg_source,
             remove_bases=REMOVE_BASES,
-            verbose=False
+            verbose=True
         )

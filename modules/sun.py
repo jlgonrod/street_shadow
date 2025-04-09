@@ -61,9 +61,9 @@ def get_sulight_vector(x, y, dt, epsg_source, convert_coords):
     Parameters
     ----------
     x : float
-        Longitude of the location. (EPSG:25829)
+        Longitude of the location. 
     y : float
-        Latitude of the location. (EPSG:25829)
+        Latitude of the location.
     dt : pandas.Timestamp
         Datetime of the calculation.
         Indicate the timezone with tz=ZoneInfo({timezone}).
@@ -71,7 +71,7 @@ def get_sulight_vector(x, y, dt, epsg_source, convert_coords):
         EPSG code of the source coordinate system.
         It should be 'EPSG:25829' or 'EPSG:4326'.
     convert_coords : bool
-        If True, convert coordinates from EPSG:25829 to EPSG:4326.
+        If True, convert coordinates from EPSG:xxxxx to EPSG:4326.
         If False, use the coordinates as they are in EPSG:4326.
 
     Returns
