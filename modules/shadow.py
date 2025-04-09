@@ -7,6 +7,10 @@ from time import time
 import os
 from multiprocessing import Pool, cpu_count
 from .coordinates import convert_multipolygon_coordinates_EPSG_to_4326
+from shapely.validation import make_valid
+import multiprocessing as mp
+
+
 def polydata_to_shapely(poly: pv.PolyData) -> MultiPolygon:
     """
     Converts pv.PolyData (2D at z=0) to Shapely MultiPolygon.
@@ -101,41 +105,55 @@ def process_shadows(buildings_combined_mesh: pv.PolyData, sunlight_direction: np
 
     return shadow_mesh
 
-def parallel_unary_union(multi_polygon, num_processes=None):
-    """
-    Performs a parallel unary union on a MultiPolygon.
+def safe_union(geoms):
+    cleaned = []
+    for geom in geoms:
+        if geom is None or geom.is_empty:
+            continue
+        try:
+            if not geom.is_valid:
+                geom = make_valid(geom)
+        except Exception:
+            try:
+                geom = geom.buffer(0)
+            except Exception:
+                continue  # skip irreparable geometries
+        if geom is not None and not geom.is_empty:
+            cleaned.append(geom)
+    try:
+        return unary_union(cleaned)
+    except Exception as e:
+        print(f"Failed unary_union on chunk with error: {e}")
+        return None
 
-    Parameters
-    ----------
-    multi_polygon : MultiPolygon
-        A Shapely MultiPolygon to merge.
-    num_processes : int, optional
-        Number of processes to use. Defaults to the number of CPU cores.
+def parallel_unary_union(multi_polygon, n_chunks=None):
 
-    Returns
-    -------
-    MultiPolygon
-        The merged MultiPolygon.
-    """
+    # Check if the input is a MultiPolygon    
     if multi_polygon.is_empty or len(multi_polygon.geoms) == 0:
-        return MultiPolygon()
+        return MultiPolygon()    
 
-    if num_processes is None:
-        num_processes = cpu_count()
+    # Check the number of chunks
+    if n_chunks is None:
+        n_chunks = mp.cpu_count()
 
-    # Extract individual polygons from the MultiPolygon
+    # Extracts the polygons from the MultiPolygon
     polygons = list(multi_polygon.geoms)
-
-    # Split polygons into chunks for parallel processing
-    chunk_size = max(1, len(polygons) // num_processes)
+    
+    # Divides the polygons into chunks
+    chunk_size = (len(polygons) + n_chunks - 1) // n_chunks
     chunks = [polygons[i:i + chunk_size] for i in range(0, len(polygons), chunk_size)]
 
-    # Perform unary_union on each chunk in parallel
-    with Pool(processes=num_processes) as pool:
-        partial_results = pool.map(unary_union, chunks)
+    # Process each chunk in parallel
+    with mp.Pool(processes=n_chunks) as pool:
+        partial_results = pool.map(safe_union, chunks)
 
-    # Merge the partial results sequentially
-    return unary_union(partial_results)
+    # Filter out None and empty results
+    partial_results = [g for g in partial_results if g is not None and not g.is_empty]
+    if not partial_results:
+        return None
+
+    # Merge the results
+    return safe_union(partial_results)
 
 def save_shadows_to_geojson(shadow_mesh, file_path, all_buildings_bases, epsg_source, remove_bases, verbose=True):
     """
