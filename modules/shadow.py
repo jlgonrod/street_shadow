@@ -10,7 +10,6 @@ from .coordinates import convert_multipolygon_coordinates_EPSG_to_4326
 from shapely.validation import make_valid
 import multiprocessing as mp
 
-
 def polydata_to_shapely(poly: pv.PolyData) -> MultiPolygon:
     """
     Converts pv.PolyData (2D at z=0) to Shapely MultiPolygon.
@@ -23,11 +22,13 @@ def polydata_to_shapely(poly: pv.PolyData) -> MultiPolygon:
     faces = poly.faces.reshape((-1, 4))[:, 1:]
     points = poly.points[:, :2]
 
-    # Creates polygons and filters invalid or zero-area ones
-    polygons = [Polygon(points[face]) for face in faces]
-    valid_polygons = [p for p in polygons if p.is_valid and p.area > 0]
+    polygons = [
+        Polygon(points[face])
+        for face in faces
+        if len(face) >= 3
+    ]
 
-    return MultiPolygon(valid_polygons) if valid_polygons else MultiPolygon()
+    return MultiPolygon(polygons) if polygons else MultiPolygon()
 
 def shapely_to_polydata(shp_geom) -> pv.PolyData:
     """
@@ -92,8 +93,14 @@ def project_mesh_onto_z0(mesh: pv.PolyData, direction: np.ndarray) -> pv.PolyDat
     t = -original_points[:, 2] / direction[2]
     shadow_points = original_points + t[:, np.newaxis] * direction
 
+    # round the points to avoid floating point precision issues
+    # rounded to 1cm (2 decimal places) because we are working 
+    # with EPSG:25830 / EPSG:25829
+    shadow_points = np.round(shadow_points, decimals=2)
+
     # Generates the new mesh with the same connectivity without merging the faces.
     shadow_mesh = pv.PolyData(shadow_points, mesh.faces)
+
     return shadow_mesh
 
 def process_shadows(buildings_combined_mesh: pv.PolyData, sunlight_direction: np.ndarray) -> pv.PolyData:
@@ -104,27 +111,6 @@ def process_shadows(buildings_combined_mesh: pv.PolyData, sunlight_direction: np
     shadow_mesh = project_mesh_onto_z0(buildings_combined_mesh, sunlight_direction)
 
     return shadow_mesh
-
-def safe_union(geoms):
-    cleaned = []
-    for geom in geoms:
-        if geom is None or geom.is_empty:
-            continue
-        try:
-            if not geom.is_valid:
-                geom = make_valid(geom)
-        except Exception:
-            try:
-                geom = geom.buffer(0)
-            except Exception:
-                continue  # skip irreparable geometries
-        if geom is not None and not geom.is_empty:
-            cleaned.append(geom)
-    try:
-        return unary_union(cleaned)
-    except Exception as e:
-        print(f"Failed unary_union on chunk with error: {e}")
-        return None
 
 def parallel_unary_union(multi_polygon, n_chunks=None):
 
@@ -145,7 +131,7 @@ def parallel_unary_union(multi_polygon, n_chunks=None):
 
     # Process each chunk in parallel
     with mp.Pool(processes=n_chunks) as pool:
-        partial_results = pool.map(safe_union, chunks)
+        partial_results = pool.map(unary_union, chunks)
 
     # Filter out None and empty results
     partial_results = [g for g in partial_results if g is not None and not g.is_empty]
@@ -153,7 +139,7 @@ def parallel_unary_union(multi_polygon, n_chunks=None):
         return None
 
     # Merge the results
-    return safe_union(partial_results)
+    return unary_union(partial_results)
 
 def save_shadows_to_geojson(shadow_mesh, file_path, all_buildings_bases, epsg_source, remove_bases, verbose=True):
     """

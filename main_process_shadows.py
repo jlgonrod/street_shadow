@@ -63,7 +63,7 @@ if __name__ == "__main__":
 
         # Convertimos el vector a un array
         sun_vector = np.array([row["x"], row["y"], row["z"]])
-        print(sun_vector)
+
         # Creamos el plotter de pyvista
         plotter = pv.Plotter()
 
