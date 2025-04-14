@@ -457,15 +457,17 @@ def add_weights_to_graph(G, edges_weight):
 
     return G, alpha_values
 
-def calculate_routes(orgine, destination, G, alpha_list):
+def calculate_routes(origen, destination, G, alpha_list):
     """
     
     Parameters
     ----------
-    orgine : tuple
-        Coordinates of the origin point (latitude, longitude).
-    destination : tuple
-        Coordinates of the destination point (latitude, longitude).
+    orgine : str
+        Address of the origin point.
+        Example: "Calle Rios Rosas 1, Malaga, España"
+    destination : str
+        Address of the destination point.
+        Example: "Calle Purificación 4, Malaga, España"
     G : osmnx.graph
         Graph to calculate the routes from.
     alpha_list : list
@@ -473,9 +475,13 @@ def calculate_routes(orgine, destination, G, alpha_list):
         The alpha values are defined in the range [0, 1].
     """
 
+    # Get the coordinates of the origin and destination
+    origen_coords = ox.geocoder.geocode(origen)
+    destination_coords = ox.geocoder.geocode(destination)
+
     # Get the nearest nodes in the graph
-    org_node = ox.distance.nearest_nodes(G, orgine[1], orgine[0])
-    dest_node = ox.distance.nearest_nodes(G, destination[1], destination[0])
+    org_node = ox.distance.nearest_nodes(G, origen_coords[1], origen_coords[0])
+    dest_node = ox.distance.nearest_nodes(G, destination_coords[1], destination_coords[0])
 
     # Calculate the routes for each alpha value
     routes = {}
@@ -665,11 +671,11 @@ def get_all_routes_on_map(routes_coords, shadows):
         ).add_to(map)
 
     # Add a layer control to the map
-    folium.LayerControl().add_to(map)
+    folium.LayerControl(collapsed=False).add_to(map)
 
     return map
     
-def save_and_format_map_html(map, datetime, city, map_path_html):
+def save_and_format_map_html(map, datetime, city, origen, destination, map_path_html):
 
     # Format the datetime into a readable string
     datetime_str = datetime.strftime("%d/%m/%Y %H:%M:%S")
@@ -688,9 +694,25 @@ def save_and_format_map_html(map, datetime, city, map_path_html):
     ">
         <h4 style="margin: 0;">{city.capitalize()}</h4>
         <p style="margin: 0;">{datetime_str}</p>
+        <br>
+        <p style="margin: 0;">Origen:<br>&nbsp;&nbsp;{origen}</p>
+        <p style="margin: 0;">Destino:<br>&nbsp;&nbsp;{destination}</p>
     </div>
     """
     map.get_root().html.add_child(folium.Element(panel_html))
+
+    # Add markers for the origin and destination
+    folium.Marker(
+        location=ox.geocoder.geocode(origen),
+        popup=origen,
+        icon=folium.Icon(color="gray", icon="play"),
+    ).add_to(map)
+
+    folium.Marker(
+        location=ox.geocoder.geocode(destination),
+        popup=destination,
+        icon=folium.Icon(color="gray", icon="stop"),
+    ).add_to(map)
 
     # Save the map to a HTML file
     map.save(map_path_html)

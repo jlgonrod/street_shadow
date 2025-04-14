@@ -120,8 +120,8 @@ if __name__ == "__main__":
 
     # Calculate routes using the weighted graph
     print("Calculating routes...")
-    origen = (36.711829, -4.431232) 
-    destination = (36.726485, -4.421981)
+    origen = "Calle Nicolás Salmerón 15, Malaga, España"
+    destination = "Calle Purificación 4, Malaga, España"
 
     routes = calculate_routes(origen, destination, G_weighted, alpha_values)
 
@@ -143,4 +143,6 @@ if __name__ == "__main__":
     save_and_format_map_html(map_with_routes,
                              dt,
                              CITY,
+                             origen,
+                             destination,
                              "map_with_routes.html")
