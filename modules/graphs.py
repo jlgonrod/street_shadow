@@ -7,7 +7,7 @@ import osmnx as ox
 import folium
 import numpy as np
 import pandas as pd
-from shapely.geometry import Polygon, box
+from shapely.geometry import Polygon,MultiPolygon, box
 from shapely.strtree import STRtree
 import branca.colormap as color_map
 import os
