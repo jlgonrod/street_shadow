@@ -11,6 +11,8 @@ from shapely.geometry import Polygon, MultiPolygon
 from shapely.strtree import STRtree
 import branca.colormap as color_map
 import os
+import geopandas as gpd
+import re
 
 def load_graph_pkl(graph_path):
     """
@@ -455,29 +457,6 @@ def add_weights_to_graph(G, edges_weight):
 
     return G, alpha_values
 
-def save_custom_graph(weighted_graph_path, graph_with_weights):
-    """
-    Save a graph with custom weights to a file.
-
-    Parameters
-    ----------
-    weighted_graph_path : str
-        Path to save the graph with weights.
-        Example: "/mnt/d/JLGon/Descargas/street_shadow_data/osmnx/malaga/malaga_weighted.pkl"
-    graph_with_weights : osmnx.graph
-        Graph object with custom weights added as attributes
-        (e.g., weight_{alpha} for each alpha value).
-
-    Returns
-    -------
-    None
-    """
-    
-    # Save the graph to a file
-    os.makedirs(os.path.dirname(weighted_graph_path), exist_ok=True)
-    with open(weighted_graph_path, 'wb') as f:
-        pickle.dump(graph_with_weights, f)
-
 def calculate_routes(orgine, destination, G, alpha_list):
     """
     
@@ -670,6 +649,49 @@ def display_all_routes_on_map(routes_coords, save_html_path):
     # Save the map to an HTML file
     map.save(save_html_path)
     
+def process_graph_using_geojson(G, edges, geojson_path):
+    """
+    This function processes a graph using a geojson file with shadows.
+    It calculates the shadow fractions for each edge in the graph
+    and updates the edge weights based on the shadow fractions.
+    The new weights are stored in the graph with the format
+    weight_{alpha}, where alpha is the parameter that defines the
+    preference for shadow or distance. The alpha values are defined
+    in the range [0, 1] with a resolution of alpha_res.
+
+    Parameters
+    ----------
+    G : osmnx.graph
+        Graph base to process.
+    edges : GeoDataFrame
+        Edges in the graph. It must contain the geometry column.
+    geojson_path : str
+        Path to the geojson file with the shadows.
+        Example: "/mnt/d/JLGon/Descargas/street_shadow_data/shadow_geojson/malaga/malaga_36.711829_-4.431232_0.0.geojson"
+
+    Returns
+    -------
+    G_weighted : osmnx.graph
+        Graph with the new weights added stored in the columns
+        weight_{alpha} for each alpha value.
+    """
+
+    # Copy the edges to avoid modifying the original GeoDataFrame
+    edges_copy = edges.copy()
+
+    # Load the geojson file
+    shadows_geojson = gpd.read_file(geojson_path)
+
+    # Get the shadow fractions
+    edges_copy["shadow_fraction"] = apply_shadow_fractions(shadows_geojson, edges_copy["geometry"])
+
+    # Calculate updated edge weights using the alpha value range
+    edges_copy = get_new_weights(edges_copy, 0.1) # Resolution of 0.1
+
+    # Store the new weights in the graph
+    G_weighted, *_ = add_weights_to_graph(G, edges_copy)
+
+    return G_weighted
 
 
 

@@ -12,7 +12,7 @@ from modules.graphs import (get_graph_from_osm,
                             apply_shadow_fractions,
                             get_new_weights,
                             add_weights_to_graph,
-                            save_custom_graph,
+                            save_graph,
                             calculate_routes,
                             route_to_list_coordinates,
                             display_all_routes_on_map)
@@ -107,9 +107,6 @@ if __name__ == "__main__":
         edges["shadow_fraction"] = apply_shadow_fractions(geojson_shadows, edges_geometries)
 
         # Calculate updated edge weights using the alpha value range
-        base_weights = edges[["length"]]
-        shadow_fractions = edges["shadow_fraction"]
-
         edges = get_new_weights(edges, 0.1)
         
         # New weights are stored in the graph
@@ -118,7 +115,7 @@ if __name__ == "__main__":
 
         print("Saving graph with new weights...")
         # Save the graph with new weights
-        save_custom_graph(weighted_graph_path, G_weighted)
+        save_graph(G_weighted, weighted_graph_path)
 
 
     # Calculate routes using the weighted graph
