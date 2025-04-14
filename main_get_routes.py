@@ -15,10 +15,10 @@ from modules.graphs import (get_graph_from_osm,
                             save_graph,
                             calculate_routes,
                             route_to_list_coordinates,
-                            display_all_routes_on_map)
+                            get_all_routes_on_map,
+                            save_and_format_map_html)
 from modules.sun import get_sulight_vector
 from modules.coordinates import convert_coordinates_EPSG_to_4326
-from tqdm import tqdm
 
 # GLOBAL VARIABLES
 CITY = "malaga"
@@ -131,6 +131,16 @@ if __name__ == "__main__":
         list_coords = route_to_list_coordinates(route, G_weighted)
         routes_coords[alpha] = list_coords
 
+    # Load the geojson with the shadows
+    geojson_path = os.path.join(GEOJSON_PATH, f"{CITY}_{sun_vector[0]}_{sun_vector[1]}_{sun_vector[2]}.geojson")
+    shadows = gpd.read_file(geojson_path)
+
     # Display all routes on a map
-    display_all_routes_on_map(routes_coords, "all_routes_map.html")
+    map_with_routes = get_all_routes_on_map(routes_coords,
+                                            shadows)
     
+    # Save the map
+    save_and_format_map_html(map_with_routes,
+                             dt,
+                             CITY,
+                             "map_with_routes.html")

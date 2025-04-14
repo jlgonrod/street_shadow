@@ -7,12 +7,12 @@ import osmnx as ox
 import folium
 import numpy as np
 import pandas as pd
-from shapely.geometry import Polygon, MultiPolygon
+from shapely.geometry import Polygon, box
 from shapely.strtree import STRtree
 import branca.colormap as color_map
 import os
 import geopandas as gpd
-import re
+
 
 def load_graph_pkl(graph_path):
     """
@@ -601,7 +601,7 @@ def add_route_to_map(route, alias, color, map):
     # Add the layer to the map
     route_layer.add_to(map)
 
-def display_all_routes_on_map(routes_coords, save_html_path):
+def get_all_routes_on_map(routes_coords, shadows):
     """
     This function takes a dictionary with the routes coordinates
     (one for each alpha value) and displays them on a folium map.
@@ -613,8 +613,10 @@ def display_all_routes_on_map(routes_coords, save_html_path):
         Dictionary with the routes coordinates. The keys are the alpha
         values and the values are lists of tuples with the coordinates
         (lat, lon) of each node. Coordinates are in EPSG:4326.
-    save_html_path : str
-        Path to save the HTML file with the map.
+    shadows : GeoDataFrame
+        GeoDataFrame with the shadows. It must contain the geometry
+        column. The geometry must be in EPSG:4326. If None, the shadows
+        will not be added to the map.
 
     Returns
     -------
@@ -622,6 +624,7 @@ def display_all_routes_on_map(routes_coords, save_html_path):
         The function does not return anything. It saves the map to
         a HTML file.
     """
+    
     # Get the needed coordinates to load the map
     center_coords, max_lat, min_lat, max_lon, min_lon = max_min_center_coords_routes(routes_coords)
     
@@ -641,14 +644,57 @@ def display_all_routes_on_map(routes_coords, save_html_path):
 
     # Add the routes to the map
     for i, (alpha, route) in enumerate(routes_coords.items()):
-        add_route_to_map(route, f"Route {alpha}", list_colors[i], map)
+        add_route_to_map(route, f"Route alpha={alpha}", list_colors[i], map)
+
+    if shadows is not None:
+        # Add the shadows to the map but cutting using the min and max lat and lon
+        pad = 0.001 # Pad in degrees not in meters
+        bounding_box = box(min_lon - pad, min_lat - pad, max_lon + pad, max_lat + pad)
+        shadows = shadows.clip(bounding_box)
+        shadows = shadows.reset_index(drop=True)
+
+        folium.GeoJson(
+            shadows,
+            name="shadows",
+            style_function=lambda x: {
+                "fill_color": "black",
+                "color": "black",
+                "weight": 0.5,
+                "fillOpacity": 0.25
+            },
+        ).add_to(map)
 
     # Add a layer control to the map
     folium.LayerControl().add_to(map)
 
-    # Save the map to an HTML file
-    map.save(save_html_path)
+    return map
     
+def save_and_format_map_html(map, datetime, city, map_path_html):
+
+    # Format the datetime into a readable string
+    datetime_str = datetime.strftime("%d/%m/%Y %H:%M:%S")
+
+    # Add a panel to the map with the datetime and city
+    panel_html = f"""
+    <div style="
+        position: fixed;
+        top: 80px;
+        left: 10px;
+        z-index: 1000;
+        background-color: white;
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+    ">
+        <h4 style="margin: 0;">{city.capitalize()}</h4>
+        <p style="margin: 0;">{datetime_str}</p>
+    </div>
+    """
+    map.get_root().html.add_child(folium.Element(panel_html))
+
+    # Save the map to a HTML file
+    map.save(map_path_html)
+
 def process_graph_using_geojson(G, edges, geojson_path):
     """
     This function processes a graph using a geojson file with shadows.
