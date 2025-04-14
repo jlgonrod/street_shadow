@@ -3,7 +3,6 @@ import numpy as np
 import pandas as pd
 import pyvista as pv
 import xml.etree.ElementTree as ET
-import pickle as pkl
 from os.path import splitext, basename
 from glob import glob
 

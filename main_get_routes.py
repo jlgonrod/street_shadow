@@ -3,11 +3,7 @@ from pandas import Timestamp as pd_Timestamp
 from zoneinfo import ZoneInfo
 import pickle as pkl
 import numpy as np
-import folium
 import geopandas as gpd
-from IPython.display import display, HTML
-from time import time
-import osmnx as ox
 import pandas as pd
 
 from modules.graphs import (get_graph_from_osm,
