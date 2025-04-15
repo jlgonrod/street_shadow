@@ -549,8 +549,6 @@ def remove_repeated_routes(routes_coords):
             # If the route is not in the unique_routes dictionary, add it
             unique_routes[alpha] = route
 
-    return unique_routes
-
 def max_min_center_coords_routes(routes_coords, pad=0):
     """
     This function takes a dictionary with the routes coordinates
@@ -794,6 +792,3 @@ def process_graph_using_geojson(G, edges, geojson_path):
     G_weighted, *_ = add_weights_to_graph(G, edges_copy)
 
     return G_weighted
-
-
-
