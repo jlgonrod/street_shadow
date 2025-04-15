@@ -492,7 +492,7 @@ def calculate_routes(origen, destination, G, alpha_list):
 
     return routes
 
-def route_to_list_coordinates(route, G):
+def route_to_list_coordinates(origen, destination, route, G):
     """
     This function takes a list of nodes as the list of their identifiers
     and returns a list of tuples with the coordinates of each node. It
@@ -503,6 +503,12 @@ def route_to_list_coordinates(route, G):
     
     Parameters
     ----------
+    origen : str
+        Address of the origin point.
+        Example: "Calle Rios Rosas 1, Malaga, España"
+    destination : str
+        Address of the destination point.
+        Example: "Calle Purificación 4, Malaga, España"
     route : list
         List of nodes identifiers.
     G : osmnx.graph
@@ -515,7 +521,20 @@ def route_to_list_coordinates(route, G):
         The coordinates are in EPSG:4326.
     """
 
-    return [[G.nodes[node]['y'], G.nodes[node]['x']] for node in route]
+    org_coords = ox.geocoder.geocode(origen)
+    dest_coords = ox.geocoder.geocode(destination)
+
+    coordinates_list = [[G.nodes[node]['y'], G.nodes[node]['x']] for node in route]
+
+    # If the first node is not the origin, add the origin coordinates
+    if coordinates_list[0] != [org_coords[0], org_coords[1]]:
+        coordinates_list.insert(0, [org_coords[0], org_coords[1]])
+
+    # If the last node is not the destination, add the destination coordinates
+    if coordinates_list[-1] != [dest_coords[0], dest_coords[1]]:
+        coordinates_list.append([dest_coords[0], dest_coords[1]])
+
+    return coordinates_list
 
 def max_min_center_coords_routes(routes_coords, pad=0):
     """

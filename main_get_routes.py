@@ -128,7 +128,7 @@ if __name__ == "__main__":
     # Get the list of coordinates for each route
     routes_coords = {}
     for alpha, route in routes.items():
-        list_coords = route_to_list_coordinates(route, G_weighted)
+        list_coords = route_to_list_coordinates(origen, destination, route, G_weighted)
         routes_coords[alpha] = list_coords
 
     # Load the geojson with the shadows
