@@ -178,7 +178,7 @@ def add_shadows_to_map(map, shadows_geojson):
             "weight": 0.5,
             "fillOpacity": 0.25
         },
-    ).add_to(map)
+    ).add_to(map).get_root().html.add_child(folium.Element('<div data-type="shadow"></div>'))
     
     return map
     
@@ -549,6 +549,8 @@ def remove_repeated_routes(routes_coords):
             # If the route is not in the unique_routes dictionary, add it
             unique_routes[alpha] = route
 
+    return unique_routes
+
 def max_min_center_coords_routes(routes_coords, pad=0):
     """
     This function takes a dictionary with the routes coordinates
@@ -702,12 +704,9 @@ def get_all_routes_on_map(routes_coords, shadows):
             },
         ).add_to(map)
 
-    # Add a layer control to the map
-    folium.LayerControl(collapsed=False).add_to(map)
-
     return map
     
-def save_and_format_map_html(map, datetime, city, origen, destination, map_path_html):
+def save_and_format_map_html(map, datetime, city, origen, destination, routes_coords, map_path_html):
 
     # Format the datetime into a readable string
     datetime_str = datetime.strftime("%d/%m/%Y %H:%M:%S")
@@ -738,13 +737,79 @@ def save_and_format_map_html(map, datetime, city, origen, destination, map_path_
         location=ox.geocoder.geocode(origen),
         popup=origen,
         icon=folium.Icon(color="gray", icon="play"),
-    ).add_to(map)
+    ).add_to(map).get_root().html.add_child(folium.Element('<div data-type="marker"></div>'))
 
     folium.Marker(
         location=ox.geocoder.geocode(destination),
         popup=destination,
         icon=folium.Icon(color="gray", icon="stop"),
-    ).add_to(map)
+    ).add_to(map).get_root().html.add_child(folium.Element('<div data-type="marker"></div>'))
+
+    # Add JavaScript for slider and checkbox
+    slider_js = """
+    <script>
+        function updateRoutes() {
+            const slider = document.getElementById('routeSlider');
+            const showAll = document.getElementById('showAllRoutes');
+            const toggleShadow = document.getElementById('toggleShadow');
+            const selectedRoute = slider.value;
+            // Get all SVG path elements on the map
+            const paths = document.querySelectorAll('path');
+            let routeIndex = 0;
+            paths.forEach(path => {
+                const stroke = path.getAttribute('stroke');
+                // if the path is a route (non-black stroke)
+                if (stroke && stroke.toLowerCase() !== '#000000' && stroke.toLowerCase() !== 'black') {
+                    if (showAll.checked) {
+                        path.style.display = '';
+                    } else {
+                        path.style.display = (routeIndex == selectedRoute) ? '' : 'none';
+                    }
+                    routeIndex++;
+                } else {
+                    // for shadows (drawn in black), check the toggleShadow status
+                    if (toggleShadow.checked) {
+                        path.style.display = '';
+                    } else {
+                        path.style.display = 'none';
+                    }
+                }
+            });
+        }
+
+        function sliderChanged() {
+            // Automatically uncheck "Show All Routes" when slider changes
+            document.getElementById('showAllRoutes').checked = false;
+            updateRoutes();
+        }
+    </script>
+    """
+
+    # Add slider and checkbox to the map
+    slider_html = f"""
+    <div style="
+        position: fixed;
+        bottom: 50px;
+        left: 10px;
+        z-index: 1000;
+        background-color: white;
+        padding: 10px;
+        border-radius: 5px;
+        box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+    ">
+        <label for="routeSlider">Select Route:</label>
+        <input type="range" id="routeSlider" min="0" max="{len(routes_coords) - 1}" value="0" oninput="sliderChanged()">
+        <br>
+        <input type="checkbox" id="showAllRoutes" onchange="updateRoutes()">
+        <label for="showAllRoutes">Show All Routes</label>
+        <br>
+        <input type="checkbox" id="toggleShadow" checked onchange="updateRoutes()">
+        <label for="toggleShadow">Show Shadows</label>
+    </div>
+    """
+
+    map.get_root().html.add_child(folium.Element(slider_js))
+    map.get_root().html.add_child(folium.Element(slider_html))
 
     # Save the map to a HTML file
     map.save(map_path_html)
