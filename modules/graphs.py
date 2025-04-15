@@ -536,6 +536,21 @@ def route_to_list_coordinates(origen, destination, route, G):
 
     return coordinates_list
 
+def remove_repeated_routes(routes_coords):
+
+    unique_routes = {}
+
+    # Iterate over the routes
+    for alpha, route in routes_coords.items():
+        # Check if the route is already in the unique_routes dictionary
+        if route in unique_routes.values():
+            continue
+        else:
+            # If the route is not in the unique_routes dictionary, add it
+            unique_routes[alpha] = route
+
+    return unique_routes
+
 def max_min_center_coords_routes(routes_coords, pad=0):
     """
     This function takes a dictionary with the routes coordinates
