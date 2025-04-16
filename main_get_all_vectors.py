@@ -133,5 +133,7 @@ if __name__ == '__main__':
     
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     output_path = f'{OUTPUT_DIR}/sun_vectors_{CITY}_{START_DATETIME.replace(" ", "T")}_{END_DATETIME.replace(" ", "T")}.csv'
-    pd.DataFrame(list(sun_vectors), columns=['x', 'y', 'z']).to_csv(output_path, index=False)
+    df = pd.DataFrame(list(sun_vectors), columns=['x', 'y', 'z'])
+    df_filtered = df[df['z'] < 0] # Filter out sunlight vectors where the sun is above the horizon (z >= 0)
+    df_filtered.to_csv(output_path, index=False)
     print(f"Sunlight vectors saved to {output_path}")
