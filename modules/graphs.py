@@ -705,31 +705,44 @@ def get_all_routes_on_map(routes_coords, shadows):
         ).add_to(map)
 
     return map
-    
+
+def load_assets(filepath):
+    """
+    This function loads the assets from the assets folder.
+    The assets folder is in the same directory as this file.
+
+    Parameters
+    ----------
+    filepath : str
+        Path to the asset file. The path is relative to the
+        assets folder. Example: "/templates/panel.html"
+
+    Returns
+    -------
+    str
+        The content of the asset file.
+    """
+    # Remove the leading slash from the filepath
+    if filepath.startswith("/"):
+        filepath = filepath[1:]
+
+    assets_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", filepath)
+    with open(assets_path, 'r') as f:
+        return f.read()
+
 def save_and_format_map_html(map, datetime, city, origen, destination, routes_coords, map_path_html):
 
     # Format the datetime into a readable string
     datetime_str = datetime.strftime("%d/%m/%Y %H:%M:%S")
 
     # Add a panel to the map with the datetime and city
-    panel_html = f"""
-    <div style="
-        position: fixed;
-        top: 80px;
-        left: 10px;
-        z-index: 1000;
-        background-color: white;
-        padding: 10px;
-        border-radius: 5px;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
-    ">
-        <h4 style="margin: 0;">{city.capitalize()}</h4>
-        <p style="margin: 0;">{datetime_str}</p>
-        <br>
-        <p style="margin: 0;">Origen:<br>&nbsp;&nbsp;{origen}</p>
-        <p style="margin: 0;">Destino:<br>&nbsp;&nbsp;{destination}</p>
-    </div>
-    """
+    panel_template = load_assets("templates/panel.html")
+    panel_html = panel_template.format(
+        datetime_str=datetime_str,
+        city=city.capitalize(),
+        origen=origen,
+        destination=destination
+    )
     map.get_root().html.add_child(folium.Element(panel_html))
 
     # Add markers for the origin and destination
@@ -746,69 +759,14 @@ def save_and_format_map_html(map, datetime, city, origen, destination, routes_co
     ).add_to(map).get_root().html.add_child(folium.Element('<div data-type="marker"></div>'))
 
     # Add JavaScript for slider and checkbox
-    slider_js = """
-    <script>
-        function updateRoutes() {
-            const slider = document.getElementById('routeSlider');
-            const showAll = document.getElementById('showAllRoutes');
-            const toggleShadow = document.getElementById('toggleShadow');
-            const selectedRoute = slider.value;
-            // Get all SVG path elements on the map
-            const paths = document.querySelectorAll('path');
-            let routeIndex = 0;
-            paths.forEach(path => {
-                const stroke = path.getAttribute('stroke');
-                // if the path is a route (non-black stroke)
-                if (stroke && stroke.toLowerCase() !== '#000000' && stroke.toLowerCase() !== 'black') {
-                    if (showAll.checked) {
-                        path.style.display = '';
-                    } else {
-                        path.style.display = (routeIndex == selectedRoute) ? '' : 'none';
-                    }
-                    routeIndex++;
-                } else {
-                    // for shadows (drawn in black), check the toggleShadow status
-                    if (toggleShadow.checked) {
-                        path.style.display = '';
-                    } else {
-                        path.style.display = 'none';
-                    }
-                }
-            });
-        }
-
-        function sliderChanged() {
-            // Automatically uncheck "Show All Routes" when slider changes
-            document.getElementById('showAllRoutes').checked = false;
-            updateRoutes();
-        }
-    </script>
-    """
+    slider_js = load_assets("templates/slider.js")
+    map.get_root().html.add_child(folium.Element(f"<script>{slider_js}</script>"))
 
     # Add slider and checkbox to the map
-    slider_html = f"""
-    <div style="
-        position: fixed;
-        bottom: 50px;
-        left: 10px;
-        z-index: 1000;
-        background-color: white;
-        padding: 10px;
-        border-radius: 5px;
-        box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
-    ">
-        <label for="routeSlider">Select Route:</label>
-        <input type="range" id="routeSlider" min="0" max="{len(routes_coords) - 1}" value="0" oninput="sliderChanged()">
-        <br>
-        <input type="checkbox" id="showAllRoutes" onchange="updateRoutes()">
-        <label for="showAllRoutes">Show All Routes</label>
-        <br>
-        <input type="checkbox" id="toggleShadow" checked onchange="updateRoutes()">
-        <label for="toggleShadow">Show Shadows</label>
-    </div>
-    """
-
-    map.get_root().html.add_child(folium.Element(slider_js))
+    slider_template = load_assets("templates/slider.html")
+    slider_html = slider_template.format(
+        len_routes=len(routes_coords) - 1
+        )
     map.get_root().html.add_child(folium.Element(slider_html))
 
     # Save the map to a HTML file
