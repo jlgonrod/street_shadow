@@ -17,7 +17,7 @@ REMOVE_BASES = True
 SAVE_PATH = f"/mnt/d/JLGon/Descargas/street_shadow_data/shadow_geojson/{splitext(basename(GML_FILE_PATH))[0]}/" # The files will be saved here.
 
 if __name__ == "__main__":
-    # Configuración de la fuente de datos
+    # Data source configuration
     tree = ET.parse(GML_FILE_PATH)
     root = tree.getroot()
     ns = {
@@ -27,7 +27,7 @@ if __name__ == "__main__":
     epsg_source = root.find(".//gml:Surface", ns).attrib.get("srsName", "").split(":")[-1] # Assume all the coordinates are in the same EPSG in the file.
     epsg_source = f"EPSG:{epsg_source}"
 
-    # Cargar los fihceros de geometrías
+    # Load geometry files
     combined_mesh, footprints_polygons, all_coords_for_map = load_or_process_buildings(GML_FILE_PATH, root, ns)
     all_buildings_footprints = process_footprints(footprints_polygons) # Process the footprints
 
@@ -37,10 +37,10 @@ if __name__ == "__main__":
     coords_min_max = np.array([[min_x, min_y], [max_x, max_y]])
     center_xy = np.mean(coords_min_max, axis=0)
     
-    # Cargar los vectores solares
+    # Load solar vectors
     sun_vectors_df = pd.read_csv(SUN_VECTORS_CSV)
 
-    # Recoger los geojson ya existentes para la ciudad
+    # Retrieve existing geojson files for the city
     existing_files_pattern = f"{SAVE_PATH}{splitext(basename(GML_FILE_PATH))[0]}_*.geojson"
     existing_files = glob(existing_files_pattern)
     existing_vectors = []
@@ -52,24 +52,24 @@ if __name__ == "__main__":
     existing_df = pd.DataFrame(existing_vectors)
     print(f"Found {len(existing_df)} existing vectors in {SAVE_PATH}")
     
-    # Eliminamos los vectores solares que ya existen del dataframe sun_vectors_df
+    # Remove solar vectors that already exist from the sun_vectors_df dataframe
     if not existing_df.empty:
         merged = sun_vectors_df.merge(existing_df, on=["x", "y", "z"], how='left', indicator=True)
         sun_vectors_df = merged[merged['_merge'] == 'left_only'].drop(columns=['_merge'])
 
-    # Para cada vector, calculamos la sombra y la guardamos en un geojson.
+    # For each vector, calculate the shadow and save it as a geojson.
     for index, row in tqdm(sun_vectors_df.iterrows(), total=len(sun_vectors_df), desc="Processing shadows with sun vectors", unit="sun vector"):
 
-        # Convertimos el vector a un array
+        # Convert the vector to an array
         sun_vector = np.array([row["x"], row["y"], row["z"]])
 
-        # Creamos el plotter de pyvista
+        # Create the pyvista plotter
         plotter = pv.Plotter()
 
-        # Calculamos las sombras
+        # Calculate the shadows
         shadow_mesh = process_shadows(combined_mesh, sun_vector)
 
-        # Se guarda como geojson
+        # Save as geojson
         save_shadows_to_geojson(
             shadow_mesh,
             f"{SAVE_PATH}{splitext(basename(GML_FILE_PATH))[0]}_{sun_vector[0]}_{sun_vector[1]}_{sun_vector[2]}.geojson",

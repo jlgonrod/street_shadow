@@ -26,7 +26,7 @@ END_DATETIME = "2025-06-01 19:00:00"      # changed from END_DATE
 ALL_COORDS_PATH = f"./data/processed_files/{CITY}_all_coords_for_map.pkl"
 
 def load_coordinates(filepath):
-    """Carga las coordenadas y calcula el punto central."""
+    """Loads the coordinates and calculates the central point."""
     if not os.path.exists(filepath):
         raise FileNotFoundError(
             f"File {filepath} not found. Please generate it first by executing main_gml_2_3D.py"
@@ -36,7 +36,7 @@ def load_coordinates(filepath):
     return center_xy
 
 def get_date_range(start_datetime, end_datetime, tz):
-    """Genera un rango de fechas (un día por entrada) usando la parte de fecha de los datetime."""
+    """Generates a date range (one day per entry) using the date part of the datetime."""
     start_date = pd.to_datetime(start_datetime).date()
     end_date = pd.to_datetime(end_datetime).date()
     return pd.date_range(
@@ -47,14 +47,14 @@ def get_date_range(start_datetime, end_datetime, tz):
     )
 
 def get_sun_times(date_range, latitude, longitude):
-    """Calcula y redondea los tiempos de amanecer y atardecer."""
+    """Calculates and rounds sunrise and sunset times."""
     sun_times = sun_rise_set_transit_ephem(date_range, latitude, longitude).drop(columns=['transit'])
     sun_times['sunrise'] = sun_times['sunrise'].dt.ceil('s')
     sun_times['sunset'] = sun_times['sunset'].dt.ceil('s')
     return sun_times
 
 def generate_daily_ranges(sun_times):
-    """Genera intervalos de tiempo entre amanecer y atardecer y retorna además sunrise y sunset."""
+    """Generates time intervals between sunrise and sunset and also returns sunrise and sunset."""
     ranges = []
     for _, row in sun_times.iterrows():
         daily_range = pd.date_range(
@@ -67,7 +67,7 @@ def generate_daily_ranges(sun_times):
     return ranges
 
 def process_daily_range(daily_range, sunrise, sunset, longitude, latitude, global_start, global_end):
-    """Calcula los vectores de luz únicos para un rango diario, ignorando instantes no visibles y fuera del rango global."""
+    """Calculates unique sunlight vectors for a daily range, ignoring non-visible and out-of-global-range moments."""
     daily_vectors = set()
     for dt in daily_range:
         if dt <= sunrise or dt >= sunset:
@@ -85,7 +85,7 @@ def process_daily_range(daily_range, sunrise, sunset, longitude, latitude, globa
     return daily_vectors
 
 def process_daily_range_wrapper(args):
-    # Función wrapper para evitar pickling de lambdas.
+    """Wrapper function to avoid pickling lambdas."""
     daily_range, sunrise, sunset, longitude, latitude, global_start, global_end = args
     return process_daily_range(daily_range, sunrise, sunset, longitude, latitude, global_start, global_end)
 
@@ -93,11 +93,11 @@ if __name__ == '__main__':
     center_xy = load_coordinates(ALL_COORDS_PATH)
     longitude, latitude = convert_coordinates_EPSG_to_4326(center_xy[0], center_xy[1], EPSG_SOURCE)
     
-    # Se utiliza el rango de fechas definido por START_DATETIME y END_DATETIME
+    # Use the date range defined by START_DATETIME and END_DATETIME
     date_range = get_date_range(START_DATETIME, END_DATETIME, TIMEZONE)
     sun_times = get_sun_times(date_range, latitude, longitude)
     
-    # Guardar CSV con datos de sunrise y sunset en columnas separadas
+    # Save CSV with sunrise and sunset data in separate columns
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     sun_times_output_path = f'{OUTPUT_DIR}/sun_times_{CITY}_{START_DATETIME.split(" ")[0]}_{END_DATETIME.split(" ")[0]}.csv'
     
@@ -114,11 +114,11 @@ if __name__ == '__main__':
     
     daily_ranges = generate_daily_ranges(sun_times)
     
-    # Definir el rango global de datetimes usando START_DATETIME y END_DATETIME
+    # Define the global datetime range using START_DATETIME and END_DATETIME
     global_start = pd.Timestamp(START_DATETIME, tz=ZoneInfo(TIMEZONE))
     global_end = pd.Timestamp(END_DATETIME, tz=ZoneInfo(TIMEZONE))
     
-    # Procesamiento en paralelo utilizando todos los núcleos disponibles
+    # Parallel processing using all available cores
     with Pool(cpu_count()) as pool:
         tasks = [(dr, sr, ss, longitude, latitude, global_start, global_end) for (dr, sr, ss) in daily_ranges]
         results = list(tqdm(
