@@ -2,3 +2,4 @@
 data/
 modules/__pycache__/
 cache/
+.vscode/
