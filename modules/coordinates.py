@@ -98,14 +98,29 @@ def convert_multipolygon_coordinates_EPSG_to_4326(multipolygon, epsg_source):
     shapely.geometry.MultiPolygon
         The converted MultiPolygon.
     """
-    # Set up the transformer from EPSG:25829 (source) to EPSG:4326 (destination)
     transformer = Transformer.from_crs(epsg_source, "EPSG:4326", always_xy=True)
     
     converted_polygons = []
-    for polygon in multipolygon.geoms:
-        exterior_coords = [transformer.transform(x, y) for x, y in polygon.exterior.coords]
-        interiors_coords = [[transformer.transform(x, y) for x, y in interior.coords] for interior in polygon.interiors]
-        converted_polygons.append(Polygon(exterior_coords, interiors_coords))
+    for geom in multipolygon.geoms:
+        if geom.geom_type == 'Polygon':
+            exterior_coords = [transformer.transform(x, y) for x, y in geom.exterior.coords]
+            interiors_coords = [[transformer.transform(x, y) for x, y in interior.coords] for interior in geom.interiors]
+            converted_polygons.append(Polygon(exterior_coords, interiors_coords))
+        elif geom.geom_type == 'LineString':
+            # Convert the LineString to Polygon using its coordinates
+            coords = [transformer.transform(x, y) for x, y in geom.coords]
+            # If the first and last point are not equal, add them to close the figure
+            if coords and coords[0] != coords[-1]:
+                coords.append(coords[0])
+            # Check if there are at least 4 coordinates to form a valid LinearRing
+            if len(coords) < 4:
+                # Ignore this geometry or handle it differently
+                continue
+            converted_polygons.append(Polygon(coords))
+        else:
+            # For other geometry types, we can ignore them or handle them as needed
+            pass
+
     return MultiPolygon(converted_polygons)
 
 def get_mesh_bounds_coords(mesh, epsg_source):
