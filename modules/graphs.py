@@ -757,7 +757,7 @@ def load_assets(filepath):
     with open(assets_path, 'r') as f:
         return f.read()
 
-def save_and_format_map_html(map, datetime, city, origen, destination, routes_coords, distances, map_path_html):
+def save_and_format_map_html(map, datetime, city, origen, destination, routes_coords, distances, dist_times, map_path_html):
 
     # Format the datetime into a readable string
     datetime_str = datetime.strftime("%d/%m/%Y %H:%M:%S")
@@ -796,21 +796,23 @@ def save_and_format_map_html(map, datetime, city, origen, destination, routes_co
         )
     map.get_root().html.add_child(folium.Element(slider_html))
 
-    # Add the distance box (when only one route is selected)
-    dist_info_html = load_assets("templates/dist_info.html")
-    map.get_root().html.add_child(folium.Element(dist_info_html))
+    # Display the times for each route
+    
+    # Add the times box (when only one route is selected)
+    times_info_html = load_assets("templates/times_info.html")
+    map.get_root().html.add_child(folium.Element(times_info_html))
 
-    # Order distances by route alpha value (asceding)
-    sorted_keys = sorted(distances, key=lambda k: float(k))
-    route_distances_array = [distances[k] for k in sorted_keys]
+    # Order times by route alpha value (asceding)
+    sorted_keys = sorted(dist_times, key=lambda k: float(k))
+    route_times_array = [dist_times[k] for k in sorted_keys]
 
-    # Add the distances to the map
-    script = f"<script>var routeDistances = {json.dumps(route_distances_array)};</script>"
+    # Add the times to the map
+    script = f"<script>var routeTimes = {json.dumps(route_times_array)};</script>"
     map.get_root().html.add_child(folium.Element(script))
 
-    # Load and add the JavaScript for the distance box
-    dist_info_js = load_assets("templates/dist_info.js")
-    map.get_root().html.add_child(folium.Element(f"<script>{dist_info_js}</script>"))
+    # Load and add the JavaScript for the times box
+    times_info_js = load_assets("templates/times_info.js")
+    map.get_root().html.add_child(folium.Element(f"<script>{times_info_js}</script>"))
 
     # Save the map to a HTML file
     map.save(map_path_html)
@@ -948,4 +950,54 @@ def process_routes_distances(routes, edges):
 
     return distances
         
+def route_time_from_distances(routes_distances_dic, speed_kmh=5):
+    """
+    This function calculates the time of each route in shadow and sun.
+    The routes are a dictionary with the alpha as keys and the values
+    are a nested dictionary with the distances at sun and shadow.
+    
+    Parameters
+    ----------
+    routes_distances_dic : dict
+        Dictionary with the alpha values as keys and a nested
+        dictionary with the distances as values.
+    speed_kmh : int or float
+        Speed in km/h. The speed is used to calculate the time
+        of the route. The default is 5 km/h.
 
+    Returns
+    -------
+    routes_times : dict
+        Dictionary with the alpha values as keys and a nested
+        dictionary with the times as values. The nested dictionary
+        contains the keys time_shadow and time_sun, which are the
+        times of the route in shadow and sun, and the values are
+        the times in seconds.
+    """
+    # Convert speed from km/h to m/s
+    speed_mps = speed_kmh * 1000 / 3600
+
+    # Create a dictionary to store the times
+    routes_times = {}
+
+    # Iterate over the routes distances
+    for alpha, distances in routes_distances_dic.items():
+        # Calculate the time in shadow and sun
+        time_shadow = distances["distance_shadow"] / speed_mps
+        time_sun = distances["distance_sun"] / speed_mps
+
+        # Get the time in minutes
+        time_shadow = time_shadow / 60
+        time_sun = time_sun / 60
+
+        # Round the times to integers
+        time_shadow = int(round(time_shadow, 0))
+        time_sun = int(round(time_sun, 0))
+
+        # Store the times in the dictionary
+        routes_times[alpha] = {
+            "time_shadow": time_shadow,
+            "time_sun": time_sun
+        }
+
+    return routes_times

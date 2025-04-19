@@ -18,7 +18,8 @@ from modules.graphs import (get_graph_from_osm,
                             get_all_routes_on_map,
                             save_and_format_map_html,
                             remove_repeated_routes,
-                            process_routes_distances)
+                            process_routes_distances,
+                            route_time_from_distances)
 from modules.sun import get_sulight_vector
 from modules.coordinates import convert_coordinates_EPSG_to_4326
 
@@ -32,6 +33,7 @@ filename = f"graph_base.pkl"
 POLYGON_QUERY_GRAPH_PATH = f"/mnt/d/JLGon/Descargas/street_shadow_data/osmnx/{CITY}/{CITY}_polygon_geometry_to_query_graph.pkl"
 GRAPH_BASE_PATH = f"/mnt/d/JLGon/Descargas/street_shadow_data/osmnx/{CITY}/{filename}"
 DATETIME = "2025-06-01 18:05:00"
+USER_SPEED = 5 #km/h
 
 # FUNCTIONS
 def load_base_graph():
@@ -152,6 +154,9 @@ if __name__ == "__main__":
     # Get the distance for each route
     routes_distances = process_routes_distances(routes, edges)
 
+    # Get routes times
+    routes_times = route_time_from_distances(routes_distances, USER_SPEED)
+
     # Load the geojson with the shadows
     geojson_path = os.path.join(GEOJSON_PATH, f"{CITY}_{sun_vector[0]}_{sun_vector[1]}_{sun_vector[2]}.geojson")
     shadows = gpd.read_file(geojson_path)
@@ -167,4 +172,5 @@ if __name__ == "__main__":
                              destination,
                              routes_coords,
                              routes_distances,
+                             routes_times,
                              "map_with_routes.html")

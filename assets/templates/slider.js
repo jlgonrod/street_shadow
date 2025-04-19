@@ -26,9 +26,9 @@ function updateRoutes() {
         }
     });
     if (!showAll.checked) {
-        updateMeterInfo(selectedRoute);
+        updateTimeInfo(selectedRoute);
     } else {
-        hideMeterInfo();
+        hideTimeInfo();
     }
 }
 
