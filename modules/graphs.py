@@ -542,12 +542,32 @@ def route_to_list_coordinates(origen, destination, route, G):
 
     return coordinates_list
 
-def remove_repeated_routes(routes_coords):
+def remove_repeated_routes(routes_list):
+    """
+    This function takes a dictionary with alpha values as keys
+    and routes (list of nodes) as values. It removes the repeated
+    routes from the dictionary. The routes are considered repeated
+    if they have the same nodes in the same order. The function
+    returns a dictionary with the unique routes. The keys are the
+    alpha values and the values are the unique routes.
+
+    Parameters
+    ----------
+    routes_list : dict
+        Dictionary with the alpha values as keys and the routes
+        as values. The routes are lists of nodes.
+
+    Returns
+    -------
+    unique_routes : dict
+        Dictionary with the unique routes. The keys are the alpha
+        values and the values are the unique routes.
+    """
 
     unique_routes = {}
 
     # Iterate over the routes
-    for alpha, route in routes_coords.items():
+    for alpha, route in routes_list.items():
         # Check if the route is already in the unique_routes dictionary
         if route in unique_routes.values():
             continue
@@ -736,7 +756,7 @@ def load_assets(filepath):
     with open(assets_path, 'r') as f:
         return f.read()
 
-def save_and_format_map_html(map, datetime, city, origen, destination, routes_coords, map_path_html):
+def save_and_format_map_html(map, datetime, city, origen, destination, routes_coords, distances, map_path_html):
 
     # Format the datetime into a readable string
     datetime_str = datetime.strftime("%d/%m/%Y %H:%M:%S")
@@ -818,6 +838,97 @@ def process_graph_using_geojson(G, edges, geojson_path):
     edges_copy = get_new_weights(edges_copy, 0.1) # Resolution of 0.1
 
     # Store the new weights in the graph
-    G_weighted, *_ = add_weights_to_graph(G, edges_copy)
+    G_weighted, *_ = add_weights_and_shadow_fractions_to_graph(G, edges_copy)
 
     return G_weighted
+
+def get_route_distance(route, lengths_edges):
+    """
+    This function calculates the distance of a route in shadow and sun.
+    The route is a list of nodes and the lengths_edges is a DataFrame
+    with the lengths of the edges. The lengths_edges DataFrame must
+    contain the columns weight_1.0 and shadow_fraction. The weight_1.0
+    column is the length of the edge in meters. The shadow_fraction
+    column is the fraction of the edge that is in shadow. The indexs
+    of the lengths_edges DataFrame must be the u and v columns of the
+    edges GeoDataFrame.
+
+    Parameters
+    ----------
+    route : list
+        List of nodes in the route. The nodes are identified by their
+        identifiers.
+    lengths_edges : DataFrame
+        DataFrame with the lengths of the edges.
+        
+    Returns
+    -------
+    distance_shadow : int
+        Distance of the route in shadow in meters.
+    distance_sun : int
+        Distance of the route in sun in meters.
+
+    """
+    # Convert route to a DataFrame of consecutive node pairs
+    route_df = pd.DataFrame({'u': route[:-1], 'v': route[1:]})
+
+    # Merge the route DataFrame with the lengths_edges DataFrame
+    merged_edges = route_df.merge(lengths_edges, on=['u', 'v'], how='left')
+
+    # Calculate the distances in shadow and sun
+    distance_shadow = (merged_edges["weight_1.0"] * merged_edges["shadow_fraction"]).sum()
+    distance_sun = (merged_edges["weight_1.0"] * (1 - merged_edges["shadow_fraction"])).sum()
+
+    # Round the values with no decimals
+    distance_shadow = int(round(distance_shadow, 0))
+    distance_sun = int(round(distance_sun, 0))
+
+    return distance_shadow, distance_sun
+
+def process_routes_distances(routes, edges):
+    """
+    This function calculates the distances of the routes in shadow and sun.
+    The routes are a dictionary with the alpha values as keys and the
+    routes as values.
+
+    Parameters
+    ----------
+    routes : dict
+        Dictionary with the alpha values as keys and the routes
+        as values. The routes are lists of nodes.
+    edges : GeoDataFrame
+        GeoDataFrame with the edges. It must contain the u, v
+        as index (origen and destination nodes) to identify the edges.
+        It also must contain the weight_1.0 column, which is the length
+        of the edge in meters and the shadow_fraction column, which is the
+        fraction of the edge that is in shadow.
+
+    Returns
+    -------
+    distances : dict
+        Dictionary with the alpha values as keys and an nested
+        dictionary with the distances as values. The nested dictionary
+        contains the keys distance_shadow and distance_sun, which are
+        the distances of the route in shadow and sun, and the values
+        are the distances in meters.
+    """
+    # Get the length of each edge in the graph
+    edges_length = edges[["weight_1.0", "shadow_fraction"]] # Length in meters is the base weight
+
+    # Create a dictionary to store the distances
+    distances = {}
+
+    # Iterate over the routes
+    for alpha, route in routes.items():
+        # Get the length of each edge in the route
+        dist_shadow, dist_sun = get_route_distance(route, edges_length)
+
+        # Store the distances in the dictionary
+        distances[alpha] = {
+            "distance_shadow": dist_shadow,
+            "distance_sun": dist_sun
+        }
+
+    return distances
+        
+

@@ -11,13 +11,14 @@ from modules.graphs import (get_graph_from_osm,
                             get_nodes_edges,
                             apply_shadow_fractions,
                             get_new_weights,
-                            add_weights_to_graph,
+                            add_weights_and_shadow_fractions_to_graph,
                             save_graph,
                             calculate_routes,
                             route_to_list_coordinates,
                             get_all_routes_on_map,
                             save_and_format_map_html,
-                            remove_repeated_routes)
+                            remove_repeated_routes,
+                            process_routes_distances)
 from modules.sun import get_sulight_vector
 from modules.coordinates import convert_coordinates_EPSG_to_4326
 
@@ -85,8 +86,21 @@ if __name__ == "__main__":
         G_weighted = load_graph_pkl(weighted_graph_path)
 
         # Get the alpha values from the graph
-        edges = G_weighted.edges(data=True)
-        edges = pd.DataFrame([attr for _, _, attr in edges])
+        edges = G_weighted.edges(data=True, keys=True)
+        # Convert to geodataframe
+        # Convert edges to a GeoDataFrame
+        edges = gpd.GeoDataFrame.from_records(
+            [(u, v, key, data) for u, v, key, data in edges],
+            columns=["u", "v", "key", "attributes"]
+        )
+
+        # Expand the attributes dictionary into separate columns
+        attributes_df = pd.DataFrame(edges["attributes"].tolist())
+        edges = pd.concat([edges.drop(columns=["attributes"]), attributes_df], axis=1)
+
+        # Set u, v, and key as the index
+        edges.set_index(["u", "v", "key"], inplace=True)
+
         
         alpha_values = [col.split("_")[1] for col in edges.columns if col.startswith("weight_")]
         
@@ -112,7 +126,7 @@ if __name__ == "__main__":
         
         # New weights are stored in the graph
         print("Adding new weights to the graph...")
-        G_weighted, alpha_values = add_weights_to_graph(G, edges)
+        G_weighted, alpha_values = add_weights_and_shadow_fractions_to_graph(G, edges)
 
         print("Saving graph with new weights...")
         # Save the graph with new weights
@@ -126,14 +140,17 @@ if __name__ == "__main__":
 
     routes = calculate_routes(origen, destination, G_weighted, alpha_values)
 
+    # Remove repeated routes
+    routes = remove_repeated_routes(routes)
+
     # Get the list of coordinates for each route
     routes_coords = {}
     for alpha, route in routes.items():
         list_coords = route_to_list_coordinates(origen, destination, route, G_weighted)
         routes_coords[alpha] = list_coords
 
-    # Remove repeated routes
-    routes_coords = remove_repeated_routes(routes_coords)
+    # Get the distance for each route
+    routes_distances = process_routes_distances(routes, edges)
 
     # Load the geojson with the shadows
     geojson_path = os.path.join(GEOJSON_PATH, f"{CITY}_{sun_vector[0]}_{sun_vector[1]}_{sun_vector[2]}.geojson")
@@ -149,4 +166,5 @@ if __name__ == "__main__":
                              origen,
                              destination,
                              routes_coords,
+                             routes_distances,
                              "map_with_routes.html")
