@@ -627,7 +627,7 @@ def max_min_center_coords_routes(routes_coords, pad=0):
 
     return (center_lat, center_lon), max_lat, min_lat, max_lon, min_lon
 
-def add_route_to_map(route, alias, color, map):
+def add_route_to_map(route, alpha, dist_dict, color, map):
     """
     This function takes a list of coordinates and adds
     a polyline to the folium map representing the route.
@@ -636,9 +636,13 @@ def add_route_to_map(route, alias, color, map):
     ----------
     route : list
         List of coordinates (lat, lon) of the route.
-    alias : str
-        Alias of the route. It will be used as the tooltip
-        of the polyline. Example: "Route 1".
+    aplha : str
+        Alpha value of the route. It is used to identify
+        the route in the map.
+    dist_dict : dict
+        Dictionary with the distances of the route. The keys
+        are the alpha values and the values are nested dictionaries
+        with the distances of shadow and sun.
     color : str
         Color of the polyline. It can be a hex color code
         or a color name. Example: "#ff271c" or "red".
@@ -654,7 +658,12 @@ def add_route_to_map(route, alias, color, map):
         polyline to the map.
     """
     # Create a feature group for the route
-    route_layer = folium.FeatureGroup(name=alias)
+    route_layer = folium.FeatureGroup(name=alpha)
+
+    # Create a tooltip with the distances
+    shadow_distance = dist_dict["distance_shadow"]
+    sun_distance = dist_dict["distance_sun"]
+    dist_info = f"Shadow distance: {int(shadow_distance)} m<br>Sun distance: {int(sun_distance)} m<br>Total distance: {int(shadow_distance + sun_distance)} m"
 
     # Add the route to the layer
     folium.PolyLine(
@@ -662,13 +671,13 @@ def add_route_to_map(route, alias, color, map):
         color=color,
         weight=5,
         opacity=0.7,
-        tooltip=alias
+        tooltip=dist_info
     ).add_to(route_layer)
 
     # Add the layer to the map
     route_layer.add_to(map)
 
-def get_all_routes_on_map(routes_coords, shadows):
+def get_all_routes_on_map(routes_coords, shadows, route_distances):
     """
     This function takes a dictionary with the routes coordinates
     (one for each alpha value) and displays them on a folium map.
@@ -684,6 +693,10 @@ def get_all_routes_on_map(routes_coords, shadows):
         GeoDataFrame with the shadows. It must contain the geometry
         column. The geometry must be in EPSG:4326. If None, the shadows
         will not be added to the map.
+    route_distances : dict
+        Dictionary with the distances of each route. The keys are the
+        alpha values and the values are nested dictionaries with the
+        distances of shadow and sun. The distances are in meters.
 
     Returns
     -------
@@ -711,7 +724,8 @@ def get_all_routes_on_map(routes_coords, shadows):
 
     # Add the routes to the map
     for i, (alpha, route) in enumerate(routes_coords.items()):
-        add_route_to_map(route, f"Route alpha={alpha}", list_colors[i], map)
+        distances = route_distances[alpha]
+        add_route_to_map(route, alpha, distances, list_colors[i], map)
 
     if shadows is not None:
         # Add the shadows to the map but cutting using the min and max lat and lon
@@ -757,7 +771,7 @@ def load_assets(filepath):
     with open(assets_path, 'r') as f:
         return f.read()
 
-def save_and_format_map_html(map, datetime, city, origen, destination, routes_coords, distances, dist_times, map_path_html):
+def save_and_format_map_html(map, datetime, city, origen, destination, routes_coords, dist_times, map_path_html):
 
     # Format the datetime into a readable string
     datetime_str = datetime.strftime("%d/%m/%Y %H:%M:%S")

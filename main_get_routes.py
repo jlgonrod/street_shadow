@@ -162,7 +162,7 @@ if __name__ == "__main__":
     shadows = gpd.read_file(geojson_path)
 
     # Display all routes on a map
-    map_with_routes = get_all_routes_on_map(routes_coords, shadows)
+    map_with_routes = get_all_routes_on_map(routes_coords, shadows, routes_distances)
     
     # Save the map
     save_and_format_map_html(map_with_routes,
@@ -171,6 +171,5 @@ if __name__ == "__main__":
                              origen,
                              destination,
                              routes_coords,
-                             routes_distances,
                              routes_times,
                              "map_with_routes.html")
