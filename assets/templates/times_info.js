@@ -14,25 +14,18 @@ function updateTimeInfo(selectedIndex, showAllRoutes) {
     const sun = routeData.time_sun;
     const total = shadow + sun;
 
-    let maxShadow, maxSun;
-    if (showAllRoutes) {
-        // Usamos máximos globales
-        maxShadow = Math.max(...routeTimes.map(r => r.time_shadow));
-        maxSun = Math.max(...routeTimes.map(r => r.time_sun));
-    } else {
-        // Usamos los valores de la ruta seleccionada
-        maxShadow = shadow;
-        maxSun = sun;
-    }
+    // Usamos máximos globales siempre para mantener barras del mismo tamaño
+    const maxShadow = Math.max(...routeTimes.map(r => r.time_shadow));
+    const maxSun = Math.max(...routeTimes.map(r => r.time_sun));
 
     // Usar el ancho total del contenedor (la barra gris) como referencia
     const timeBar = document.getElementById('timeBar');
     const totalWidth = timeBar.offsetWidth;
 
-    // Calcular el factor de escala basado en los máximos globales o seleccionados
+    // Calcular el factor de escala usando los máximos globales
     const scale = totalWidth / (maxShadow + maxSun);
 
-    // El origen se ubica en el centro de la barra
+    // El origen se ubica en el centro de la barra en función de los máximos
     const origin = (maxShadow / (maxShadow + maxSun)) * totalWidth;
 
     const shadowSegment = document.getElementById('timeShadowSegment');
@@ -61,6 +54,13 @@ function updateTimeInfo(selectedIndex, showAllRoutes) {
     totalTimeDiv.textContent = 'Total min: ' + total;
 
     infoDiv.style.display = 'block';
+}
+
+function hideTimeInfo() {
+    const infoDiv = document.getElementById('timeInfo');
+    if (infoDiv) {
+        infoDiv.style.display = 'none';
+    }
 }
 
 function hideTimeInfo() {
