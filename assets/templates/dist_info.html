@@ -1,19 +1,22 @@
 <div id="meterInfo" style="
         position: fixed;
         bottom: 10px;
-        left: 50%;
-        transform: translateX(-50%);
+        left: 320px;
+        right: 10px;
+        margin: auto;
         z-index: 1000;
         background-color: white;
         padding: 10px;
         border-radius: 5px;
         box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
-        width: 80%;
+        width: 60%;
+        min-width: 400px;
         display: none;
     ">
     <div id="meterBar" style="display: flex; width: 100%; height: 30px;">
-        <div id="shadowSegment" style="background: #1795d4; text-align: center; color: white; line-height: 30px;"></div>
-        <div id="sunSegment" style="background: #ff271c; text-align: center; color: white; line-height: 30px;"></div>
+        <div id="shadowSegment" style="text-align: center; color: white; line-height: 30px;"></div>
+        <div id="sunSegment" style="text-align: center; color: white; line-height: 30px;"></div>
+        <div id="remainingSegment" style="background: #cccccc; text-align: center; color: black; line-height: 30px;"></div>
     </div>
     <div style="text-align: center; margin-top: 5px;">metros</div>
 </div>
