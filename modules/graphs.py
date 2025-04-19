@@ -399,17 +399,18 @@ def get_new_weights(edges ,alpha_res=0.1):
 
     return edges
 
-def add_weights_to_graph(G, edges_weight):
+def add_weights_and_shadow_fractions_to_graph(G, edges_weight):
     """
-    This function adds the new weights to the graph. The new weights
-    are stored in the edges GeoDataFrame with the format weight_{alpha}.
-    Edges weigths must contain the u, v, key as columns or index. And at least
+    This function adds the new weights and shadow fractions to the graph. 
+    The new weights are stored in the edges GeoDataFrame with the format weight_{alpha}.
+    The shadow fractions are stored in the shadow_fraction column.
+    Edges weights must contain the u, v, key as columns or index. And at least
     one column with the format weight_{alpha}.
 
     Parameters
     ----------
     G : osmnx.graph
-        Graph to add the weights to.
+        Graph to add the weights and shadow fractions to.
     edges_weight : GeoDataFrame
         GeoDataFrame with the edges. It must contain
         the geometry and the shadow_fraction columns.
@@ -420,8 +421,9 @@ def add_weights_to_graph(G, edges_weight):
     Returns
     -------
     G : osmnx.graph
-        Graph with the new weights added stored in the columns
-        weight_{alpha} for each alpha value.
+        Graph with the new weights and shadow fractions added.
+        The weights are stored in the columns weight_{alpha} for each alpha value.
+        The shadow fractions are stored in the shadow_fraction column.
     alpha_values : list
         List with the alpha values used to calculate the new weights.
         The alpha values are defined in the range [0, 1] with a resolution
@@ -435,8 +437,8 @@ def add_weights_to_graph(G, edges_weight):
     if not alpha_values:
         raise ValueError("No alpha values found in the edges GeoDataFrame.")
 
-    # New weights are stored in the graph
-    edges_weight.reset_index(inplace=True) # u, v, key are now columns
+    # New weights and shadow fractions are stored in the graph
+    edges_weight.reset_index(inplace=True)  # u, v, key are now columns
 
     # Create a DataFrame from the graph edges to facilitate the merge
     graph_edges = pd.DataFrame(
@@ -447,12 +449,16 @@ def add_weights_to_graph(G, edges_weight):
     # Perform a merge between the DataFrame of the graph edges and the `edges_weight` DataFrame
     merged_edges = graph_edges.merge(edges_weight, on=["u", "v", "key"], how="left")
 
-    # Update the weights directly in the graph
+    # Update the weights and shadow fractions directly in the graph
     for _, row in merged_edges.iterrows():
         u, v, k = row["u"], row["v"], row["key"]
         data = G[u][v][k]
+        # Add shadow_fraction
+        if pd.notna(row["shadow_fraction"]):  # Verify that the value is not NaN
+            data["shadow_fraction"] = row["shadow_fraction"]
+        # Add weights for each alpha
         for alpha in alpha_values:
-            if pd.notna(row[f"weight_{alpha}"]):  # Verificar que el valor no sea NaN
+            if pd.notna(row[f"weight_{alpha}"]):  # Verify that the value is not NaN
                 data[f"weight_{alpha}"] = row[f"weight_{alpha}"]
 
     return G, alpha_values
