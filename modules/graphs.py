@@ -12,6 +12,7 @@ from shapely.strtree import STRtree
 import branca.colormap as color_map
 import os
 import geopandas as gpd
+import json
 
 
 def load_graph_pkl(graph_path):
@@ -794,6 +795,22 @@ def save_and_format_map_html(map, datetime, city, origen, destination, routes_co
         len_routes=len(routes_coords) - 1
         )
     map.get_root().html.add_child(folium.Element(slider_html))
+
+    # Add the distance box (when only one route is selected)
+    dist_info_html = load_assets("templates/dist_info.html")
+    map.get_root().html.add_child(folium.Element(dist_info_html))
+
+    # Order distances by route alpha value (asceding)
+    sorted_keys = sorted(distances, key=lambda k: float(k))
+    route_distances_array = [distances[k] for k in sorted_keys]
+
+    # Add the distances to the map
+    script = f"<script>var routeDistances = {json.dumps(route_distances_array)};</script>"
+    map.get_root().html.add_child(folium.Element(script))
+
+    # Load and add the JavaScript for the distance box
+    dist_info_js = load_assets("templates/dist_info.js")
+    map.get_root().html.add_child(folium.Element(f"<script>{dist_info_js}</script>"))
 
     # Save the map to a HTML file
     map.save(map_path_html)

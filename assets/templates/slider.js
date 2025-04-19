@@ -25,6 +25,11 @@ function updateRoutes() {
             }
         }
     });
+    if (!showAll.checked) {
+        updateMeterInfo(selectedRoute);
+    } else {
+        hideMeterInfo();
+    }
 }
 
 function sliderChanged() {
