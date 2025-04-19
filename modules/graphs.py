@@ -663,7 +663,13 @@ def add_route_to_map(route, alpha, dist_dict, color, map):
     # Create a tooltip with the distances
     shadow_distance = dist_dict["distance_shadow"]
     sun_distance = dist_dict["distance_sun"]
-    dist_info = f"Shadow distance: {int(shadow_distance)} m<br>Sun distance: {int(sun_distance)} m<br>Total distance: {int(shadow_distance + sun_distance)} m"
+    dist_info = f"""
+    <div style="text-align: left;">
+        <b>Shadow distance:</b>&emsp;{int(shadow_distance)} m<br>
+        <b>Sun distance:</b>&emsp;&nbsp;&nbsp;&nbsp;{int(sun_distance)} m<br>
+        <b>Total distance:</b>&emsp;&nbsp;&nbsp;&nbsp;{int(shadow_distance + sun_distance)} m
+    </div>
+    """
 
     # Add the route to the layer
     folium.PolyLine(
