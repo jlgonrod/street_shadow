@@ -1,0 +1,14 @@
+branca==0.8.1
+folium==0.19.5
+geopandas==1.0.1
+numpy==2.2.4
+osmnx==2.0.2
+pandas==2.2.3
+Pillow==11.2.1
+pvlib==0.12.0
+pyproj==3.7.1
+pyvista==0.44.2
+Requests==2.32.3
+Shapely==2.1.0
+tqdm==4.67.1
+ephem==4.2
