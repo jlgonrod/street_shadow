@@ -26,7 +26,15 @@ function updateRoutes() {
         }
     });
     if (!showAll.checked) {
-        updateTimeInfo(selectedRoute);
+        // Forzar que se muestre el contenedor para que se calcule correctamente el offsetWidth
+        const infoDiv = document.getElementById('timeInfo');
+        if (infoDiv) {
+            infoDiv.style.display = 'block';
+        }
+        // Llamar a updateTimeInfo en el siguiente frame para garantizar que se haya actualizado el layout
+        window.requestAnimationFrame(() => {
+            updateTimeInfo(selectedRoute, showAll.checked);
+        });
     } else {
         hideTimeInfo();
     }

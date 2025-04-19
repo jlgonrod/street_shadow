@@ -1,4 +1,4 @@
-function updateTimeInfo(selectedIndex) {
+function updateTimeInfo(selectedIndex, showAllRoutes) {
     if (typeof routeTimes === 'undefined') return;
     const infoDiv = document.getElementById('timeInfo');
     if (!infoDiv) return;
@@ -6,42 +6,60 @@ function updateTimeInfo(selectedIndex) {
     const routeData = routeTimes[selectedIndex];
     if (!routeData) {
         infoDiv.style.display = 'none';
-        return; // <---- Se agrega el return para detener la ejecución
+        return;
     }
-    
+
+    // Valores de la ruta seleccionada
     const shadow = routeData.time_shadow;
     const sun = routeData.time_sun;
-    const currentTotal = shadow + sun;
+    const total = shadow + sun;
 
-    // Calcular el tiempo máximo entre todas las rutas
-    const maxTime = Math.max(...routeTimes.map(r => r.time_shadow + r.time_sun));
-    
-    // Porcentaje que ocupa la ruta actual respecto a la ruta más larga
-    const filledPercentage = maxTime ? (currentTotal / maxTime) * 100 : 0;
-    
-    // Proporciones para los segmentos de sombra y sol
-    const shadowPct = currentTotal ? (shadow / currentTotal) * filledPercentage : 0;
-    const sunPct = currentTotal ? (sun / currentTotal) * filledPercentage : 0;
-    
-    // Porcentaje restante para completar 100%
-    const remainingPct = 100 - filledPercentage;
+    let maxShadow, maxSun;
+    if (showAllRoutes) {
+        // Usamos máximos globales
+        maxShadow = Math.max(...routeTimes.map(r => r.time_shadow));
+        maxSun = Math.max(...routeTimes.map(r => r.time_sun));
+    } else {
+        // Usamos los valores de la ruta seleccionada
+        maxShadow = shadow;
+        maxSun = sun;
+    }
+
+    // Usar el ancho total del contenedor (la barra gris) como referencia
+    const timeBar = document.getElementById('timeBar');
+    const totalWidth = timeBar.offsetWidth;
+
+    // Calcular el factor de escala basado en los máximos globales o seleccionados
+    const scale = totalWidth / (maxShadow + maxSun);
+
+    // El origen se ubica en el centro de la barra
+    const origin = (maxShadow / (maxShadow + maxSun)) * totalWidth;
 
     const shadowSegment = document.getElementById('timeShadowSegment');
     const sunSegment = document.getElementById('timeSunSegment');
-    const remainingSegment = document.getElementById('timeRemainingSegment');
+    const divider = document.getElementById('timeDivider');
 
-    shadowSegment.style.width = shadowPct + '%';
-    shadowSegment.style.background = '#1795d4';
-    shadowSegment.textContent = shadow;
+    // Configurar el segmento de Sombra
+    const shadowWidth = shadow * scale;
+    shadowSegment.style.width = shadowWidth + 'px';
+    // Ubicamos su extremo derecho en el origen
+    shadowSegment.style.left = (origin - shadowWidth) + 'px';
+    shadowSegment.textContent = shadow + ' min';
 
-    sunSegment.style.width = sunPct + '%';
-    sunSegment.style.background = '#ff271c';
-    sunSegment.textContent = sun;
-    
-    remainingSegment.style.width = remainingPct + '%';
-    remainingSegment.style.background = '#cccccc';
-    remainingSegment.textContent = '';
-    
+    // Configurar el segmento de Sol
+    const sunWidth = sun * scale;
+    sunSegment.style.width = sunWidth + 'px';
+    sunSegment.style.left = origin + 'px';
+    sunSegment.textContent = sun + ' min';
+
+    // Posicionar el divisor en el origen
+    divider.style.left = origin + 'px';
+    divider.style.transform = 'none';
+
+    // Mostrar el total en la parte inferior
+    const totalTimeDiv = document.getElementById('totalTime');
+    totalTimeDiv.textContent = 'Total min: ' + total;
+
     infoDiv.style.display = 'block';
 }
 

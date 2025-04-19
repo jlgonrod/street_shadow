@@ -13,10 +13,43 @@
         min-width: 400px;
         display: none;
     ">
-    <div id="timeBar" style="display: flex; width: 100%; height: 30px;">
-        <div id="timeShadowSegment" style="text-align: center; color: white; line-height: 30px;"></div>
-        <div id="timeSunSegment" style="text-align: center; color: white; line-height: 30px;"></div>
-        <div id="timeRemainingSegment" style="background: #cccccc; text-align: center; color: black; line-height: 30px;"></div>
+    <div id="timeBar" style="
+            position: relative;
+            width: 100%;
+            height: 30px;
+            background: #e8e8e8;
+        ">
+        <div id="timeShadowSegment" style="
+                position: absolute;
+                right: 50%;
+                height: 100%;
+                background: #1795d4;
+                text-align: right;
+                padding-right: 5px;
+                color: white;
+                line-height: 30px;
+            ">
+        </div>
+        <div id="timeSunSegment" style="
+                position: absolute;
+                left: 50%;
+                height: 100%;
+                background: #ff271c;
+                text-align: left;
+                padding-left: 5px;
+                color: white;
+                line-height: 30px;
+            ">
+        </div>
+        <div id="timeDivider" style="
+                position: absolute;
+                left: 50%;
+                transform: translateX(-50%);
+                width: 2px;
+                background: black;
+                height: 100%;
+            ">
+        </div>
     </div>
-    <div style="text-align: center; margin-top: 5px;">minutes</div>
+    <div id="totalTime" style="text-align: center; margin-top: 5px;"></div>
 </div>
