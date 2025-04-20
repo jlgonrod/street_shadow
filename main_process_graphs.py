@@ -3,8 +3,13 @@ import re
 import pandas as pd
 import pickle as pkl
 from tqdm import tqdm
+import geopandas as gpd
 
-from modules.graphs import load_graph_pkl, process_graph_using_geojson, save_graph, get_graph_from_osm
+from modules.graphs import (load_graph_pkl,
+                            process_graph_using_geojson,
+                            save_graph,
+                            get_graph_from_osm,
+                            get_nodes_edges)
 
 # GLOBAL VARIABLES
 CITY = "malaga"
@@ -17,12 +22,12 @@ MESH_PATH = f"/mnt/d/JLGon/Descargas/street_shadow_data/meshes/{CITY}/{CITY}_com
 EPSG_SOURCE = "EPSG:25830"
 POLYGON_QUERY_GRAPH_PATH = f"/mnt/d/JLGon/Descargas/street_shadow_data/osmnx/{CITY}/{CITY}_polygon_geometry_to_query_graph.pkl"
 
+# FUNCTIONS
 def get_data_basename(basename):
     splitted = re.split(r"_", os.path.splitext(basename)[0])
     x, y, z = splitted[-3:]
     return basename, x, y, z
 
-# FUNCTIONS
 def load_or_build_base_graph():
     """
     Load the base graph from a file or download it from OSM if it does not exist.
@@ -77,18 +82,9 @@ if __name__ == "__main__":
     shadows_without_graph = shadows_files_df[~shadows_files_df[["x", "y", "z"]].apply(tuple, 1).isin(graphs_files_df[["x", "y", "z"]].apply(tuple, 1))]
     shadows_without_graph.reset_index(drop=True, inplace=True)
 
-    # Load the base_graph and base edges
+    # Create or load the base_graph and base edges
     G = load_or_build_base_graph()
-
-    # Check if edges exist, open it if it does or crete it if it doesn't
-    if not os.path.exists(GRAPH_BASE_EDGES):
-        edges = G.edges(data=True)
-        with open(GRAPH_BASE_EDGES, "wb") as f:
-            pkl.dump(edges, f)
-    else:
-        # Load the edges from the file
-        with open(GRAPH_BASE_EDGES, "rb") as f:
-            edges = pkl.load(f)
+    nodes, edges = get_nodes_edges(G, GRAPH_BASE_PATH)
 
     # Iterate over the geojson files without graph
     for geojson_file, x, y, z in tqdm(shadows_without_graph.values, desc="Processing geojson files"):
