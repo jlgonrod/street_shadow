@@ -36,7 +36,7 @@ DATETIME = "2025-06-01 18:05:00"
 USER_SPEED = 5 #km/h
 
 # FUNCTIONS
-def load_base_graph():
+def load_or_build_base_graph():
     """
     Load the base graph from a file or download it from OSM if it does not exist.
     
@@ -109,7 +109,7 @@ if __name__ == "__main__":
     else:
         print("Weighted graph does not exist, creating it...")
         # Load the base graph
-        G = load_base_graph()
+        G = load_or_build_base_graph()
 
         # Get nodes and edges
         nodes, edges = get_nodes_edges(G, GRAPH_BASE_PATH)

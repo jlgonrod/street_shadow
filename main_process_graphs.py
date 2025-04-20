@@ -4,7 +4,7 @@ import pandas as pd
 import pickle as pkl
 from tqdm import tqdm
 
-from modules.graphs import load_graph_pkl, process_graph_using_geojson, save_graph
+from modules.graphs import load_graph_pkl, process_graph_using_geojson, save_graph, get_graph_from_osm
 
 # GLOBAL VARIABLES
 CITY = "malaga"
@@ -13,11 +13,48 @@ FOLDER_GRAPHS = f"/mnt/d/JLGon/Descargas/street_shadow_data/osmnx/{CITY}"
 GRAPH_BASE_PATH = f"/mnt/d/JLGon/Descargas/street_shadow_data/osmnx/{CITY}/graph_base.pkl"
 GRAPH_BASE_EDGES = f"/mnt/d/JLGon/Descargas/street_shadow_data/osmnx/{CITY}/_edges_gdfs.pkl"
 
+MESH_PATH = f"/mnt/d/JLGon/Descargas/street_shadow_data/meshes/{CITY}/{CITY}_combined_mesh.vtk"
+EPSG_SOURCE = "EPSG:25830"
+POLYGON_QUERY_GRAPH_PATH = f"/mnt/d/JLGon/Descargas/street_shadow_data/osmnx/{CITY}/{CITY}_polygon_geometry_to_query_graph.pkl"
+
 def get_data_basename(basename):
     splitted = re.split(r"_", os.path.splitext(basename)[0])
     x, y, z = splitted[-3:]
     return basename, x, y, z
 
+# FUNCTIONS
+def load_or_build_base_graph():
+    """
+    Load the base graph from a file or download it from OSM if it does not exist.
+    
+    Parameters
+    ----------
+    graph_base_path : str
+        Path to the graph file.
+        Example: "/mnt/d/JLGon/Descargas/street_shadow_data/osmnx/malaga/malaga_base.pkl"
+        
+    Returns
+    -------
+    graph : networkx.Graph
+        Graph object.
+    """
+    if os.path.exists(GRAPH_BASE_PATH):
+        # Load the graph from file
+        print("Graph already exists, loading it...")
+        graph = load_graph_pkl(GRAPH_BASE_PATH)
+    else:
+        # Check if there is a polygon file to query the graph
+        if os.path.exists(POLYGON_QUERY_GRAPH_PATH):
+            with open(POLYGON_QUERY_GRAPH_PATH, 'rb') as f:
+                polygon = pkl.load(f)
+        else:
+            polygon = None
+
+        # Download the graph from OSM using osmnx library
+        print("Graph does not exist, downloading it from OSM...")
+        graph = get_graph_from_osm(GRAPH_BASE_PATH, polygon, MESH_PATH, EPSG_SOURCE)
+
+    return graph
 
 if __name__ == "__main__":
     
@@ -41,7 +78,7 @@ if __name__ == "__main__":
     shadows_without_graph.reset_index(drop=True, inplace=True)
 
     # Load the base_graph and base edges
-    G = load_graph_pkl(GRAPH_BASE_PATH)
+    G = load_or_build_base_graph()
 
     # Check if edges exist, open it if it does or crete it if it doesn't
     if not os.path.exists(GRAPH_BASE_EDGES):
