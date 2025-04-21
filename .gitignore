@@ -3,3 +3,4 @@ data/
 modules/__pycache__/
 cache/
 .vscode/
+generate_documentation_scripts/
