@@ -494,7 +494,7 @@ def calculate_routes(origen, destination, G, alpha_list):
     routes = {}
     for alpha in alpha_list:
         # Calculate the route
-        route = ox.shortest_path(G, org_node, dest_node, weight=f'weight_{alpha}')
+        route = ox.shortest_path(G, org_node, dest_node, weight=f'weight_{alpha}', cpus=6)
         routes[alpha] = route
 
     return routes
