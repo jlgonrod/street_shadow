@@ -33,7 +33,7 @@ filename = f"graph_base.pkl"
 POLYGON_QUERY_GRAPH_PATH = f"/mnt/d/JLGon/Descargas/street_shadow_data/osmnx/{CITY}/{CITY}_polygon_geometry_to_query_graph.pkl"
 GRAPH_BASE_PATH = f"/mnt/d/JLGon/Descargas/street_shadow_data/osmnx/{CITY}/{filename}"
 DATETIME = "2025-06-01 18:05:00"
-USER_SPEED = 5 #km/h
+USER_SPEED = 4.7 #km/h
 
 # FUNCTIONS
 def load_or_build_base_graph():
