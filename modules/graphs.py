@@ -773,21 +773,22 @@ def load_assets(filepath):
     with open(filepath, 'r') as f:
         return f.read()
 
-def save_and_format_map_html(map, datetime, city, origen, destination, routes_coords, dist_times, map_path_html):
+def save_and_format_map_html(map, datetime, city, origen, destination, routes_coords, dist_times, info_panel, map_path_html):
 
     # Format the datetime into a readable string
     datetime_str = datetime.strftime("%d/%m/%Y %H:%M:%S")
 
     # Add a panel to the map with the datetime and city
-    panel_path = os.path.join(BASE_DIR, "assets", "templates", "panel.html")
-    panel_template = load_assets(panel_path)
-    panel_html = panel_template.format(
-        datetime_str=datetime_str,
-        city=city.capitalize(),
-        origen=origen,
-        destination=destination
-    )
-    map.get_root().html.add_child(folium.Element(panel_html))
+    if info_panel:
+        panel_path = os.path.join(BASE_DIR, "assets", "templates", "panel.html")
+        panel_template = load_assets(panel_path)
+        panel_html = panel_template.format(
+            datetime_str=datetime_str,
+            city=city.capitalize(),
+            origen=origen,
+            destination=destination
+        )
+        map.get_root().html.add_child(folium.Element(panel_html))
 
     # Add markers for the origin and destination
     folium.Marker(

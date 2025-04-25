@@ -180,4 +180,5 @@ if __name__ == "__main__":
                              destination,
                              routes_coords,
                              routes_times,
-                             "map_with_routes.html")
+                             info_panel=True,
+                             map_path_html="map_with_routes.html")

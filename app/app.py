@@ -31,7 +31,7 @@ sys.path = original_sys_path
 
 app = Flask(__name__)
 
-# CONFIGURACIÓN GLOBAL (ajusta las rutas según tu proyecto)
+# GLOBAL VARIABLES
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
 CITY = "malaga"
@@ -44,11 +44,11 @@ USER_SPEED = 4.7  # km/h
 
 def load_or_build_base_graph():
     """
-    Carga o descarga el grafo base.
+    Load the base graph from a file or download it from OSM if it does not exist.
     """
     POLYGON_QUERY_GRAPH_PATH = os.path.join(PROJECT_ROOT, "data", "osmnx", CITY, f"{CITY}_polygon_geometry_to_query_graph.pkl")
     if os.path.exists(GRAPH_BASE_PATH):
-        print("El grafo base existe, cargándolo...")
+        print("The base graph exists, loading it...")
         graph = load_graph_pkl(GRAPH_BASE_PATH)
     else:
         polygon = None
@@ -57,7 +57,7 @@ def load_or_build_base_graph():
                 import pickle as pkl
                 polygon = pkl.load(f)
         from modules.graphs import get_graph_from_osm
-        print("El grafo base no existe, descargándolo de OSM...")
+        print("The base graph does not exist, downloading it from OSM...")
         graph = get_graph_from_osm(GRAPH_BASE_PATH, polygon, MESH_PATH, EPSG_SOURCE)
     return graph
 
@@ -65,25 +65,25 @@ def load_or_build_base_graph():
 def index():
     if request.method == "POST":
         origen = request.form.get("origen")
-        destino = request.form.get("destino")
-        fecha = request.form.get("fecha")   # formato: YYYY-MM-DD
-        hora = request.form.get("hora")       # formato: HH:MM
-        dt_str = f"{fecha} {hora}:00"
+        destination = request.form.get("destination")
+        date = request.form.get("date")   # format: YYYY-MM-DD
+        time = request.form.get("time")  # format: HH:MM
+        dt_str = f"{date} {time}:00"
         dt = pd_Timestamp(dt_str).tz_localize(ZoneInfo("Europe/Madrid"))
         
-        # Cargar coordenadas y calcular el vector del sol
+        # Load all coordinates from the pickle file
         with open(ALL_COORDS_PATH, "rb") as f:
             all_coords = pkl.load(f)
         x, y = np.mean(all_coords, axis=0) if all_coords else (0, 0)
         x, y = convert_coordinates_EPSG_to_4326(x, y, EPSG_SOURCE)
         sun_vector = get_sulight_vector(x, y, dt, "EPSG:4326", convert_coords=False)
         
-        # Determinar el nombre del grafo pesado según el vector del sol
+        # Get the name of the weighted graph based on the sun vector
         weighted_graph_path = GRAPH_BASE_PATH.replace("_base.pkl", f"_{sun_vector[0]}_{sun_vector[1]}_{sun_vector[2]}.pkl")
         if os.path.exists(weighted_graph_path):
-            print("Cargando grafo pesado...")
+            print("Loading weighted graph...")
             G_weighted = load_graph_pkl(weighted_graph_path)
-            # Se extraen los valores alpha de las columnas de pesos
+            # Alpha values are extracted from the weight columns
             import geopandas as gpd
             edges = G_weighted.edges(data=True, keys=True)
             edges = gpd.GeoDataFrame.from_records(
@@ -103,22 +103,22 @@ def index():
                 f"{CITY}_{sun_vector[0]}_{sun_vector[1]}_{sun_vector[2]}.geojson"
             )
             geojson_shadows = gpd.read_file(geojson_path)
-            # Aplica el cálculo de fracciones de sombra y pesos en los edges
+            # Apply shadow fractions and weights to edges
             edges["shadow_fraction"] = __import__('modules.graphs').graphs.apply_shadow_fractions(geojson_shadows, edges["geometry"])
             edges = __import__('modules.graphs').graphs.get_new_weights(edges, 0.1)
             G_weighted, alpha_values = __import__('modules.graphs').graphs.add_weights_and_shadow_fractions_to_graph(G, edges)
             __import__('modules.graphs').graphs.save_graph(G_weighted, weighted_graph_path)
         
-        # Calcular las rutas usando el grafo pesado
-        routes = calculate_routes(origen, destino, G_weighted, alpha_values)
+        # Routes are calculated for each alpha value
+        routes = calculate_routes(origen, destination, G_weighted, alpha_values)
         routes = remove_repeated_routes(routes)
         routes_coords = {}
         for alpha, route in routes.items():
-            routes_coords[alpha] = route_to_list_coordinates(origen, destino, route, G_weighted)
+            routes_coords[alpha] = route_to_list_coordinates(origen, destination, route, G_weighted)
         routes_distances = process_routes_distances(routes, edges)
         routes_times = route_time_from_distances(routes_distances, USER_SPEED)
         
-        # Leer el geojson de sombras y generar el mapa
+        # Read the geojson file for shadows
         geojson_path = os.path.join(
             GEOJSON_PATH,
             f"{CITY}_{sun_vector[0]}_{sun_vector[1]}_{sun_vector[2]}.geojson"
@@ -126,28 +126,28 @@ def index():
         shadows = gpd.read_file(geojson_path)
         map_with_routes = get_all_routes_on_map(routes_coords, shadows, routes_distances)
         
-        # Guarda el mapa en la carpeta static para mostrarlo en la web
+        # Save the map to a static folder
         static_folder = os.path.join(BASE_DIR, "static")
         os.makedirs(static_folder, exist_ok=True)
         map_html_path = os.path.join(static_folder, "map_with_routes.html")
-        save_and_format_map_html(map_with_routes, dt, CITY, origen, destino, routes_coords, routes_times, map_html_path)
+        save_and_format_map_html(map_with_routes, dt, CITY, origen, destination, routes_coords, routes_times, False, map_html_path)
         
-        # Abrir el HTML generado para reemplazar "assets/" por "/assets/"
+        # Open the HTML file and replace "assets/" with "/assets/"
         with open(map_html_path, "r", encoding="utf-8") as f:
             content = f.read()
         modified_content = content.replace('assets/', '/assets/')
         with open(map_html_path, "w", encoding="utf-8") as f:
             f.write(modified_content)
 
-        # Renderiza la misma plantilla pasando la URL del mapa generado
+        # Renderize the same template passing the URL of the generated map
         return render_template("index.html", 
                                map_url=url_for('static', filename="map_with_routes.html"),
-                               origen=origen, destino=destino, fecha=fecha, hora=hora)
+                               origen=origen, destino=destination, fecha=date, hora=time)
     
-    # GET: muestra solo el formulario
+    # GET: shows the form
     return render_template("index.html", map_url=None)
 
-# Agrega una ruta para servir los archivos de assets
+# Add a route to serve the assets files
 @app.route('/assets/<path:filename>')
 def assets(filename):
     assets_path = os.path.join(PROJECT_ROOT, 'assets')
