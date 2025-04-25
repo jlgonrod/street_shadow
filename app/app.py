@@ -7,6 +7,8 @@ import pandas as pd
 from pandas import Timestamp as pd_Timestamp
 from zoneinfo import ZoneInfo
 import sys
+import folium
+
 
 original_sys_path = sys.path.copy()
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -144,8 +146,15 @@ def index():
                                map_url=url_for('static', filename="map_with_routes.html"),
                                origen=origen, destino=destination, fecha=date, hora=time)
     
-    # GET: shows the form
-    return render_template("index.html", map_url=None)
+    # GET: Load the default map
+    static_folder = os.path.join(BASE_DIR, "static")
+    os.makedirs(static_folder, exist_ok=True)
+    map_html_path = os.path.join(static_folder, "map_with_routes.html")
+    # Malaga coordenates
+    malaga_coords = [36.72093, -4.42404]
+    default_map = folium.Map(location=malaga_coords, zoom_start=12)
+    default_map.save(map_html_path)
+    return render_template("index.html", map_url=url_for('static', filename="map_with_routes.html"))
 
 # Add a route to serve the assets files
 @app.route('/assets/<path:filename>')
