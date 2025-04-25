@@ -15,7 +15,6 @@
             font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
             background-color: #f4f7f9;
         }
-        /* Buscador en la esquina superior izquierda, más estrecho */
         .search-panel {
             position: fixed;
             top: 20px;
@@ -34,7 +33,6 @@
         .search-panel .form-group {
             margin-bottom: 15px;
         }
-        /* Se eliminan los textos de 'Origen:' y 'Destino:' */
         .search-panel input {
             width: 100%;
             padding: 8px;
@@ -55,7 +53,6 @@
         .search-panel button:hover {
             opacity: 0.9;
         }
-        /* Contenedor para el mapa a pantalla completa */
         .container {
             position: fixed;
             top: 0;
@@ -77,16 +74,16 @@
         <h4>Search Route</h4>
         <form action="/" method="POST">
             <div class="form-group">
-                <input type="text" id="origen" name="origen" placeholder="Origen" required>
+                <input type="text" id="origen" name="origen" placeholder="Origen" required value="{{ origen or '' }}">
             </div>
             <div class="form-group">
-                <input type="text" id="destination" name="destination" placeholder="Destination" required>
+                <input type="text" id="destination" name="destination" placeholder="Destination" required value="{{ destino or '' }}">
             </div>
             <div class="form-group">
-                <input type="date" id="date" name="date" required>
+                <input type="date" id="date" name="date" required value="{{ fecha or '2025-06-01' }}">
             </div>
             <div class="form-group">
-                <input type="time" id="time" name="time" required>
+                <input type="time" id="time" name="time" required value="{{ hora or '18:05' }}">
             </div>
             <button type="submit">Search</button>
         </form>
