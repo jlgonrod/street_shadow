@@ -12,15 +12,17 @@ from modules.graphs import (load_graph_pkl,
                             get_nodes_edges)
 
 # GLOBAL VARIABLES
-CITY = "malaga"
-FOLDER_SHADOWS = f"/mnt/d/JLGon/Descargas/street_shadow_data/shadow_geojson/{CITY}"
-FOLDER_GRAPHS = f"/mnt/d/JLGon/Descargas/street_shadow_data/osmnx/{CITY}"
-GRAPH_BASE_PATH = f"/mnt/d/JLGon/Descargas/street_shadow_data/osmnx/{CITY}/graph_base.pkl"
-GRAPH_BASE_EDGES = f"/mnt/d/JLGon/Descargas/street_shadow_data/osmnx/{CITY}/_edges_gdfs.pkl"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-MESH_PATH = f"/mnt/d/JLGon/Descargas/street_shadow_data/meshes/{CITY}/{CITY}_combined_mesh.vtk"
+CITY = "malaga"
+FOLDER_SHADOWS = os.path.join(BASE_DIR, "data", "shadow_geojson", CITY)
+FOLDER_GRAPHS = os.path.join(BASE_DIR, "data", "osmnx", CITY)
+GRAPH_BASE_PATH = os.path.join(BASE_DIR, "data", "osmnx", CITY, "graph_base.pkl")
+GRAPH_BASE_EDGES = os.path.join(BASE_DIR, "data", "osmnx", CITY, "_edges_gdfs.pkl")
+
+MESH_PATH = os.path.join(BASE_DIR, "data", "processed_files", f"{CITY}_combined_mesh.vtk")
 EPSG_SOURCE = "EPSG:25830"
-POLYGON_QUERY_GRAPH_PATH = f"/mnt/d/JLGon/Descargas/street_shadow_data/osmnx/{CITY}/{CITY}_polygon_geometry_to_query_graph.pkl"
+POLYGON_QUERY_GRAPH_PATH = os.path.join(BASE_DIR, "data", "osmnx", CITY, f"{CITY}_polygon_geometry_to_query_graph.pkl")
 
 # FUNCTIONS
 def get_data_basename(basename):

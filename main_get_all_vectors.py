@@ -15,15 +15,17 @@ from modules.coordinates import convert_coordinates_EPSG_to_4326
 from modules.sun import get_sulight_vector
 
 # GLOBAL CONFIGURATION
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 CITY = "malaga"
 EPSG_SOURCE = "EPSG:25830"
-FREQ = '1min'
+FREQ = '5min'
 TIMEZONE = 'Europe/Madrid'
-OUTPUT_DIR = f'./data/sun_vectors/{CITY}'
-START_DATETIME = "2025-06-01 18:00:00"  # changed from START_DATE
-END_DATETIME = "2025-06-01 19:00:00"      # changed from END_DATE
+OUTPUT_DIR = os.path.join(BASE_DIR, 'data', 'sun_vectors', CITY)
+START_DATETIME = "2025-06-01 00:00:00"  # changed from START_DATE
+END_DATETIME = "2025-06-01 23:59:00"      # changed from END_DATE
 
-ALL_COORDS_PATH = f"./data/processed_files/{CITY}_all_coords_for_map.pkl"
+ALL_COORDS_PATH = os.path.join(BASE_DIR, 'data', 'processed_files', f"{CITY}_all_coords_for_map.pkl")
 
 def load_coordinates(filepath):
     """Loads the coordinates and calculates the central point."""
@@ -99,7 +101,10 @@ if __name__ == '__main__':
     
     # Save CSV with sunrise and sunset data in separate columns
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    sun_times_output_path = f'{OUTPUT_DIR}/sun_times_{CITY}_{START_DATETIME.split(" ")[0]}_{END_DATETIME.split(" ")[0]}.csv'
+    sun_times_output_path = os.path.join(
+        OUTPUT_DIR, 
+        f'sun_times_{CITY}_{START_DATETIME.split(" ")[0]}_{END_DATETIME.split(" ")[0]}.csv'
+    )
     
     if not os.path.exists(sun_times_output_path):
         formatted_sun_times = pd.DataFrame({
@@ -132,7 +137,10 @@ if __name__ == '__main__':
         sun_vectors.update(vectors)
     
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    output_path = f'{OUTPUT_DIR}/sun_vectors_{CITY}_{START_DATETIME.replace(" ", "T")}_{END_DATETIME.replace(" ", "T")}.csv'
+    output_path = os.path.join(
+        OUTPUT_DIR, 
+        f'sun_vectors_{CITY}_{START_DATETIME.replace(" ", "T")}_{END_DATETIME.replace(" ", "T")}.csv'
+    )
     df = pd.DataFrame(list(sun_vectors), columns=['x', 'y', 'z'])
     df_filtered = df[df['z'] < 0] # Filter out sunlight vectors where the sun is above the horizon (z >= 0)
     df_filtered.to_csv(output_path, index=False)

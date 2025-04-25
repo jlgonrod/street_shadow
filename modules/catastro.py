@@ -2,6 +2,8 @@ import requests
 import os
 import urllib.parse
 
+BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+
 def get_building_gml(ref_cat, save_folder):
     """
     Get the GML file of a building from the parcel reference
@@ -67,4 +69,5 @@ if __name__ == "__main__":
     ref_cat = "3530001TG3433S"
     
     # Get the building GML
-    get_building_gml(ref_cat, "./data/gml/buildings")
+    out_folder = os.path.join(BASE_DIR, "data", "gml", "buildings")
+    get_building_gml(ref_cat, out_folder)

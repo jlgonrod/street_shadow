@@ -14,6 +14,7 @@ import os
 import geopandas as gpd
 import json
 
+BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 
 def load_graph_pkl(graph_path):
     """
@@ -43,7 +44,7 @@ def get_graph_from_osm(graph_base_path, polygon=None, mesh_path=None, epsg_mesh_
     ----------
     graph_base_path : str
         Path to save the graph file.
-        Example: "/mnt/d/JLGon/Descargas/street_shadow_data/osmnx/malaga/malaga_base.pkl"
+        Example: "data/osmnx/malaga/malaga_base.pkl"
     polygon : shapely.geometry.Polygon, optional
         Polygon to use for graph extraction. If None, mesh bounds will be used.
         Polingons coordinates must be in EPSG:4326.
@@ -109,7 +110,7 @@ def get_nodes_edges(G, graph_base_path):
         Graph to get nodes and edges from.
     graph_base_path : str
         Path to the graph base file.
-        Example: "/mnt/d/JLGon/Descargas/street_shadow_data/osmnx/malaga/malaga_base.pkl"
+        Example: "data/osmnx/malaga/malaga_base.pkl"
     
     Returns
     -------
@@ -769,12 +770,7 @@ def load_assets(filepath):
     str
         The content of the asset file.
     """
-    # Remove the leading slash from the filepath
-    if filepath.startswith("/"):
-        filepath = filepath[1:]
-
-    assets_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", filepath)
-    with open(assets_path, 'r') as f:
+    with open(filepath, 'r') as f:
         return f.read()
 
 def save_and_format_map_html(map, datetime, city, origen, destination, routes_coords, dist_times, map_path_html):
@@ -783,7 +779,8 @@ def save_and_format_map_html(map, datetime, city, origen, destination, routes_co
     datetime_str = datetime.strftime("%d/%m/%Y %H:%M:%S")
 
     # Add a panel to the map with the datetime and city
-    panel_template = load_assets("templates/panel.html")
+    panel_path = os.path.join(BASE_DIR, "assets", "templates", "panel.html")
+    panel_template = load_assets(panel_path)
     panel_html = panel_template.format(
         datetime_str=datetime_str,
         city=city.capitalize(),
@@ -806,11 +803,13 @@ def save_and_format_map_html(map, datetime, city, origen, destination, routes_co
     ).add_to(map).get_root().html.add_child(folium.Element('<div data-type="marker"></div>'))
 
     # Add JavaScript for slider and checkbox
-    slider_js = load_assets("templates/slider.js")
+    slider_js_path = os.path.join(BASE_DIR, "assets", "templates", "slider.js")
+    slider_js = load_assets(slider_js_path)
     map.get_root().html.add_child(folium.Element(f"<script>{slider_js}</script>"))
 
     # Add slider and checkbox to the map
-    slider_template = load_assets("templates/slider.html")
+    slider_path = os.path.join(BASE_DIR, "assets", "templates", "slider.html")
+    slider_template = load_assets(slider_path)
     slider_html = slider_template.format(
         len_routes=len(routes_coords) - 1
         )
@@ -819,7 +818,8 @@ def save_and_format_map_html(map, datetime, city, origen, destination, routes_co
     # Display the times for each route
     
     # Add the times box (when only one route is selected)
-    times_info_html = load_assets("templates/times_info.html")
+    times_info_path = os.path.join(BASE_DIR, "assets", "templates", "times_info.html")
+    times_info_html = load_assets(times_info_path)
     map.get_root().html.add_child(folium.Element(times_info_html))
 
     # Order times by route alpha value (asceding)
@@ -831,7 +831,8 @@ def save_and_format_map_html(map, datetime, city, origen, destination, routes_co
     map.get_root().html.add_child(folium.Element(script))
 
     # Load and add the JavaScript for the times box
-    times_info_js = load_assets("templates/times_info.js")
+    times_info_js_path = os.path.join(BASE_DIR, "assets", "templates", "times_info.js")
+    times_info_js = load_assets(times_info_js_path)
     map.get_root().html.add_child(folium.Element(f"<script>{times_info_js}</script>"))
 
     # Save the map to a HTML file
@@ -855,7 +856,7 @@ def process_graph_using_geojson(G, edges, geojson_path):
         Edges in the graph. It must contain the geometry column.
     geojson_path : str
         Path to the geojson file with the shadows.
-        Example: "/mnt/d/JLGon/Descargas/street_shadow_data/shadow_geojson/malaga/malaga_36.711829_-4.431232_0.0.geojson"
+        Example: "data/shadow_geojson/malaga/malaga_36.711829_-4.431232_0.0.geojson"
 
     Returns
     -------

@@ -24,14 +24,16 @@ from modules.sun import get_sulight_vector
 from modules.coordinates import convert_coordinates_EPSG_to_4326
 
 # GLOBAL VARIABLES
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
 CITY = "malaga"
-MESH_PATH = f"./data/processed_files/{CITY}_combined_mesh.vtk"
-ALL_COORDS_PATH = f"./data/processed_files/{CITY}_all_coords_for_map.pkl"
-GEOJSON_PATH = f"/mnt/d/JLGon/Descargas/street_shadow_data/shadow_geojson/{CITY}"
+MESH_PATH = os.path.join(BASE_DIR, "data", "processed_files", f"{CITY}_combined_mesh.vtk")
+ALL_COORDS_PATH = os.path.join(BASE_DIR, "data", "processed_files", f"{CITY}_all_coords_for_map.pkl")
+GEOJSON_PATH = os.path.join(BASE_DIR, "data", "shadow_geojson", CITY)
 EPSG_SOURCE = "EPSG:25830"
 filename = f"graph_base.pkl"
-POLYGON_QUERY_GRAPH_PATH = f"/mnt/d/JLGon/Descargas/street_shadow_data/osmnx/{CITY}/{CITY}_polygon_geometry_to_query_graph.pkl"
-GRAPH_BASE_PATH = f"/mnt/d/JLGon/Descargas/street_shadow_data/osmnx/{CITY}/{filename}"
+POLYGON_QUERY_GRAPH_PATH = os.path.join(BASE_DIR, "data", "osmnx", CITY, f"{CITY}_polygon_geometry_to_query_graph.pkl")
+GRAPH_BASE_PATH = os.path.join(BASE_DIR, "data", "osmnx", CITY, filename)
 DATETIME = "2025-06-01 18:05:00"
 USER_SPEED = 4.7 #km/h
 
@@ -44,7 +46,7 @@ def load_or_build_base_graph():
     ----------
     graph_base_path : str
         Path to the graph file.
-        Example: "/mnt/d/JLGon/Descargas/street_shadow_data/osmnx/malaga/malaga_base.pkl"
+        Example: "data/osmnx/malaga/malaga_base.pkl"
         
     Returns
     -------
@@ -115,7 +117,10 @@ if __name__ == "__main__":
         nodes, edges = get_nodes_edges(G, GRAPH_BASE_PATH)
 
         # Get the geojson
-        geojson_path = os.path.join(GEOJSON_PATH, f"{CITY}_{sun_vector[0]}_{sun_vector[1]}_{sun_vector[2]}.geojson")
+        geojson_path = os.path.join(
+            GEOJSON_PATH,
+            f"{CITY}_{sun_vector[0]}_{sun_vector[1]}_{sun_vector[2]}.geojson"
+            )
         geojson_shadows = gpd.read_file(geojson_path)
 
         # Get the shadows fractions for each edge
@@ -158,7 +163,10 @@ if __name__ == "__main__":
     routes_times = route_time_from_distances(routes_distances, USER_SPEED)
 
     # Load the geojson with the shadows
-    geojson_path = os.path.join(GEOJSON_PATH, f"{CITY}_{sun_vector[0]}_{sun_vector[1]}_{sun_vector[2]}.geojson")
+    geojson_path = os.path.join(
+        GEOJSON_PATH,
+        f"{CITY}_{sun_vector[0]}_{sun_vector[1]}_{sun_vector[2]}.geojson"
+        )
     shadows = gpd.read_file(geojson_path)
 
     # Display all routes on a map

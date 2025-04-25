@@ -7,6 +7,8 @@ import io
 import numpy as np
 from .coordinates import convert_coordinates_arrays_EPSG_to_4326, get_square_coords_from_coords
 
+BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+
 def get_min_max_coords(lon1, lat1, lon2, lat2):
     """
     This function returns the minimum and maximum coordinates of a bounding box
@@ -160,7 +162,7 @@ def get_image_from_coords(coords_gml, epsg_source):
     img = parse_image_map(map_img)
 
     # Save the image in a temporary file
-    save_path = "./data/temp/map_image.png"
+    save_path = os.path.join(BASE_DIR, "data", "temp", "map_image.png")
     if not os.path.exists(os.path.dirname(save_path)):
         os.makedirs(os.path.dirname(save_path))
     img.save(save_path)

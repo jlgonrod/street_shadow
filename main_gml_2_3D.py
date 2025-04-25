@@ -1,6 +1,9 @@
 from modules.gml_3d_viwer import gml_3d_from_file
 from pandas import Timestamp as pd_Timestamp
 from zoneinfo import ZoneInfo
+import os
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 if __name__ == "__main__":
     # Get the GML file path for a building
@@ -9,7 +12,7 @@ if __name__ == "__main__":
 
     # Get the GML file path for a town
     name = "beas"
-    GML_FILE_PATH = f"./data/gml/towns/{name}.gml"
+    GML_FILE_PATH = os.path.join(BASE_DIR, "data", "gml", "towns", f"{name}.gml")
 
     # Set the datetime to calculate the shadows based on the sun position
     dt_sample = pd_Timestamp(

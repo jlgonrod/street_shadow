@@ -11,10 +11,13 @@ from modules.shadow import process_shadows, save_shadows_to_geojson
 from tqdm import tqdm
 
 # CONFIGURE YOUR PATHS HERE
-GML_FILE_PATH = "./data/gml/towns/malaga.gml"
-SUN_VECTORS_CSV = "./data/sun_vectors/malaga/sun_vectors_malaga_2025-06-01T18:00:00_2025-06-01T19:00:00.csv"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CITY = "malaga"
+
+GML_FILE_PATH = os.path.join(BASE_DIR, "data", "gml", "towns", f"{CITY}.gml")
+SUN_VECTORS_CSV = os.path.join(BASE_DIR, "data", "sun_vectors", CITY, f"sun_vectors_{CITY}_2025-06-01T18:00:00_2025-06-01T19:00:00.csv") # EDIT WITH YOUR SUN VECTORS CSV FILE
 REMOVE_BASES = True
-SAVE_PATH = f"/mnt/d/JLGon/Descargas/street_shadow_data/shadow_geojson/{splitext(basename(GML_FILE_PATH))[0]}/" # The files will be saved here.
+SAVE_PATH = os.path.join(BASE_DIR, "data", "shadow_geojson", splitext(basename(GML_FILE_PATH))[0], "") # The files will be saved here.
 
 if __name__ == "__main__":
     # Data source configuration
@@ -41,7 +44,7 @@ if __name__ == "__main__":
     sun_vectors_df = pd.read_csv(SUN_VECTORS_CSV)
 
     # Retrieve existing geojson files for the city
-    existing_files_pattern = f"{SAVE_PATH}{splitext(basename(GML_FILE_PATH))[0]}_*.geojson"
+    existing_files_pattern = os.path.join(SAVE_PATH, f"{splitext(basename(GML_FILE_PATH))[0]}_*.geojson")
     existing_files = glob(existing_files_pattern)
     existing_vectors = []
     for file in existing_files:

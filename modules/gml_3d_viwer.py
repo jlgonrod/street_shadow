@@ -13,6 +13,8 @@ from .map_image import draw_base_map
 from .sun import get_sulight_vector
 from .shadow import process_shadows, save_shadows_to_geojson
 
+BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+
 
 def process_buildings(root, ns):
     """
@@ -149,9 +151,9 @@ def load_or_process_buildings(gml_file_path, root, ns):
     list
         List of all coordinates for the base map.
     """
-    combined_mesh_file = f"./data/processed_files/{splitext(basename(gml_file_path))[0]}_combined_mesh.vtk"
-    footprints_polygons_file = f"./data/processed_files/{splitext(basename(gml_file_path))[0]}_footprints_polygons.pkl"
-    all_coords_for_map_file = f"./data/processed_files/{splitext(basename(gml_file_path))[0]}_all_coords_for_map.pkl"
+    combined_mesh_file = os.path.join(BASE_DIR, "data", "processed_files", f"{splitext(basename(gml_file_path))[0]}_combined_mesh.vtk")
+    footprints_polygons_file = os.path.join(BASE_DIR, "data", "processed_files", f"{splitext(basename(gml_file_path))[0]}_footprints_polygons.pkl")
+    all_coords_for_map_file = os.path.join(BASE_DIR, "data", "processed_files", f"{splitext(basename(gml_file_path))[0]}_all_coords_for_map.pkl")
 
     if os.path.exists(combined_mesh_file) and os.path.exists(footprints_polygons_file) and os.path.exists(all_coords_for_map_file):
         print(f"Loading existing combined mesh from {combined_mesh_file}...")
@@ -260,7 +262,7 @@ def calculate_and_add_shadows(plotter, combined_mesh, all_buildings_footprints, 
         start_time = time()
         save_shadows_to_geojson(
             shadow_mesh,
-            f"./data/shadow_geojson/{splitext(basename(gml_file_path))[0]}/{splitext(basename(gml_file_path))[0]}_{sunlight_direction[0]}_{sunlight_direction[1]}_{sunlight_direction[2]}.geojson",
+            os.path.join(BASE_DIR, "data", "shadow_geojson", f"{splitext(basename(gml_file_path))[0]}", f"{splitext(basename(gml_file_path))[0]}_{sunlight_direction[0]}_{sunlight_direction[1]}_{sunlight_direction[2]}.geojson"),
             all_buildings_footprints,
             epsg_source,
             remove_bases=remove_bases
