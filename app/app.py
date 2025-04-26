@@ -110,7 +110,7 @@ def process_request(origen, destination, date, time):
         G_weighted, alpha_values = __import__('modules.graphs').graphs.add_weights_and_shadow_fractions_to_graph(G, edges)
         __import__('modules.graphs').graphs.save_graph(G_weighted, weighted_graph_path)
     
-    log_message("Calculating routes...")
+    log_message("Generating routes...")
     routes = calculate_routes(origen, destination, G_weighted, alpha_values)
     log_message("Removing repeated routes...")
     routes = remove_repeated_routes(routes)
@@ -118,9 +118,9 @@ def process_request(origen, destination, date, time):
     log_message("Converting routes to coordinates...")
     for alpha, route in routes.items():
         routes_coords[alpha] = route_to_list_coordinates(origen, destination, route, G_weighted)
-    log_message("Calculating distances...")
+    log_message("Generating distances...")
     routes_distances = process_routes_distances(routes, edges)
-    log_message("Calculating times...")
+    log_message("Generating times...")
     routes_times = route_time_from_distances(routes_distances, USER_SPEED)
     
     log_message("Reading geojson file for shadows...")
