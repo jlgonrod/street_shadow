@@ -19,7 +19,7 @@
             position: fixed;
             top: 20px;
             left: 20px;
-            z-index: 1000;
+            z-index: 1001;
             background: rgba(255, 255, 255, 0.95);
             padding: 20px;
             border-radius: 8px;
@@ -54,46 +54,105 @@
             opacity: 0.9;
         }
         .container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            z-index: 0;
+            position: relative;
+            height: 100%;
+            width: 100%;
         }
         .container iframe {
             border: none;
             width: 100%;
             height: 100%;
         }
+        /* Modal overlay for progress */
+        .overlay {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .overlay .modal-content {
+            background: #fff;
+            padding: 20px 30px;
+            border-radius: 8px;
+            text-align: center;
+            max-height: 60%;
+            overflow-y: auto;
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        }
     </style>
 </head>
 <body>
-    <!-- Buscador en la esquina superior izquierda -->
+    <!-- Search panel -->
     <div class="search-panel">
         <h4>Search Route</h4>
-        <form action="/" method="POST">
+        <form id="searchForm">
             <div class="form-group">
-                <input type="text" id="origen" name="origen" placeholder="Origen" required value="{{ origen or '' }}">
+                <input type="text" id="origen" name="origen" placeholder="Origen" required>
             </div>
             <div class="form-group">
-                <input type="text" id="destination" name="destination" placeholder="Destination" required value="{{ destino or '' }}">
+                <input type="text" id="destination" name="destination" placeholder="Destination" required>
             </div>
             <div class="form-group">
-                <input type="date" id="date" name="date" required value="{{ fecha or '2025-06-01' }}">
+                <input type="date" id="date" name="date" required value="2025-06-01">
             </div>
             <div class="form-group">
-                <input type="time" id="time" name="time" required value="{{ hora or '18:05' }}">
+                <input type="time" id="time" name="time" required value="18:05">
             </div>
             <button type="submit">Search</button>
         </form>
     </div>
-    
-    <!-- Contenedor para el mapa o contenido cargado -->
+
+    <!-- Map container -->
     <div class="container">
-        {% if map_url %}
-            <iframe src="{{ map_url }}"></iframe>
-        {% endif %}
+        <iframe id="mapFrame" src="{{ map_url }}"></iframe>
+        <!-- Progress modal overlay on the map -->
+        <div class="overlay" id="progressModal">
+            <div class="modal-content">
+                <h3>Calculating routes...</h3>
+                <div id="progressMessages"></div>
+            </div>
+        </div>
     </div>
+
+    <script>
+        document.getElementById("searchForm").addEventListener("submit", function(e) {
+            e.preventDefault();
+            // Show progress modal
+            document.getElementById("progressModal").style.display = "flex";
+            document.getElementById("progressMessages").innerHTML = "";
+            
+            // Start SSE connection to display progress messages
+            const evtSource = new EventSource("/progress");
+            evtSource.onmessage = function(e) {
+                // Replace previous message with the new one
+                document.getElementById("progressMessages").textContent = e.data;
+                if(e.data === "Process completed.") {
+                    setTimeout(function(){
+                        document.getElementById("progressModal").style.display = "none";
+                        // Reload the iframe to display the updated map with routes
+                        document.getElementById("mapFrame").src = document.getElementById("mapFrame").src;
+                        evtSource.close();
+                    }, 2000);
+                }
+            };
+
+            // Submit form via fetch for immediate response
+            const formData = new FormData(e.target);
+            fetch("/", {
+                method: "POST",
+                body: formData
+            }).then(response => {
+                if(!response.ok){
+                    console.error("Error in submission");
+                }
+            }).catch(err => console.error(err));
+        });
+    </script>
 </body>
 </html>
