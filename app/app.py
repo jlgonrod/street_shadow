@@ -162,7 +162,7 @@ def index():
     map_html_path = os.path.join(static_folder, "map_with_routes.html")
     # Malaga coordenates
     malaga_coords = [36.72093, -4.42404]
-    default_map = folium.Map(location=malaga_coords, zoom_start=12)
+    default_map = folium.Map(location=malaga_coords, zoom_start=12, zoom_control="topright")
     default_map.save(map_html_path)
     return render_template("index.html", map_url=url_for('static', filename="map_with_routes.html"))
 
