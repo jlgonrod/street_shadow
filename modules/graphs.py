@@ -220,6 +220,26 @@ def geojson_to_individual_polygons(shadows_geojson):
     return polygons
 
 def get_shadow_fractions(geometry, strtree, list_poligons):
+    """
+    This function calculates the shadow fraction of a geometry
+    using a spatial index (STRtree) and a list of polygons.
+
+    Parameters
+    ----------
+    geometry : shapely.geometry
+        Geometry to calculate the shadow fraction for.
+    strtree : STRtree
+        Spatial index (STRtree) with the polygons.
+    list_poligons : list
+        List of polygons to check for intersections.
+        
+    Returns
+    -------
+    float
+        Shadow fraction of the geometry. It is a value between 0.0 and 1.0.
+        If there are no intersections, it returns 0.0.
+    """
+
     try:
         # Check if the geometry is not empty and is valid
         if geometry.is_empty or not geometry.is_valid:
@@ -279,7 +299,11 @@ def apply_shadow_fractions(shadows_geojson, edges_geom_series):
     
 def add_shadow_fraction_segments_to_map(map, edges):
     """
-    
+    This function adds the shadow fraction segments to a folium map.
+    The shadow fraction segments are the edges of the graph with the
+    shadow fraction as a color gradient. The shadow fraction is a value
+    between 0.0 and 1.0. The edges are colored from red (0.0) to blue (1.0).
+
     Parameters
     ----------
     map : folium.Map
@@ -469,7 +493,14 @@ def add_weights_and_shadow_fractions_to_graph(G, edges_weight):
 
 def calculate_routes(origen, destination, G, alpha_list):
     """
-    
+    This function calculates the routes between two points
+    in a graph using the osmnx library. The routes are calculated
+    using the Dijkstra algorithm. The routes are calculated
+    for each alpha value in the alpha_list. The alpha values
+    are used to get the new weights for the edges in the
+    graph. The routes are stored in a dictionary with the alpha
+    values as keys and the routes as values. The routes are
+    lists of nodes identifiers.
     Parameters
     ----------
     orgine : str
@@ -778,7 +809,46 @@ def load_assets(filepath):
         return f.read()
 
 def save_and_format_map_html(map, datetime, city, origen, destination, routes_coords, dist_times, info_panel, map_path_html):
+    """
+    This function saves the folium map to a HTML file and formats.
 
+    Parameters
+    ----------
+    map : folium.Map
+        Folium map to save and format.
+    datetime : datetime
+        Datetime of the map. It is used to format the
+        datetime in the panel.
+    city : str
+        City name. It is used to format the city name
+        in the panel.
+    origen : str
+        Address of the origin point.
+        Example: "Calle Rios Rosas 1, Malaga, España"
+    destination : str
+        Address of the destination point.
+        Example: "Calle Purificación 4, Malaga, España"
+    routes_coords : dict
+        Dictionary with the routes coordinates. The keys are the alpha
+        values and the values are lists of tuples with the coordinates
+        (lat, lon) of each node.
+    dist_times : dict
+        Dictionary with the distances of each route. The keys are the
+        alpha values and the values are nested dictionaries with the
+        distances of shadow and sun. The distances are in meters.
+    info_panel : bool
+        If True, the panel with the datetime and city will be added
+        to the map. If False, the panel will not be added.
+    map_path_html : str
+        Path to save the HTML file. The path is relative to the
+        assets folder. Example: "assets/templates/map.html"
+
+    Returns
+    -------
+    None
+        The function does not return anything. It saves the map to
+        a HTML file.
+    """
     # Format the datetime into a readable string
     datetime_str = datetime.strftime("%d/%m/%Y %H:%M:%S")
 

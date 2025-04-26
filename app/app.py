@@ -43,10 +43,13 @@ EPSG_SOURCE = "EPSG:25830"
 GRAPH_BASE_PATH = os.path.join(PROJECT_ROOT, "data", "osmnx", CITY, "graph_base.pkl")
 USER_SPEED = 4.7  # km/h
 
-# Cola global para los mensajes de progreso
+# Create a queue to store messages
 messages_queue = queue.Queue()
 
 def log_message(msg):
+    """
+    Log a message to the console and put it in the messages queue.
+    """
     print(msg)
     messages_queue.put(msg)
 
@@ -70,19 +73,38 @@ def load_or_build_base_graph():
     return graph
 
 def process_request(origen, destination, date, time):
+    """
+    Process the request to calculate routes and generate a map.
+    
+    Parameters
+    ----------
+    origen : str
+        Origin address in as a string.
+    destination : str
+        Destination address in as a string.
+    date : str
+        Date in the format YYYY-MM-DD.
+    time : str
+        Time in the format HH:MM.
+    """
+
     dt_str = f"{date} {time}:00"
     dt = pd_Timestamp(dt_str).tz_localize(ZoneInfo("Europe/Madrid"))
     
-    # Load all coordinates from the pickle file
+    # Load all coordinates from the pickle file to get the center
     with open(ALL_COORDS_PATH, "rb") as f:
         all_coords = pkl.load(f)
     x, y = np.mean(all_coords, axis=0) if all_coords else (0, 0)
     x, y = convert_coordinates_EPSG_to_4326(x, y, EPSG_SOURCE)
+
+    # Get the sun vector for the given coordinates and datetime
     sun_vector = get_sulight_vector(x, y, dt, "EPSG:4326", convert_coords=False)
     
-    # Get the name of the weighted graph based on the sun vector
+    # Get the name of the weighted graph based on the sun vector and load it
     weighted_graph_path = GRAPH_BASE_PATH.replace("_base.pkl", f"_{sun_vector[0]}_{sun_vector[1]}_{sun_vector[2]}.pkl")
+    
     if os.path.exists(weighted_graph_path):
+        # Load the weighted graph from the file
         log_message("Loading weighted graph...")
         G_weighted = load_graph_pkl(weighted_graph_path)
         log_message("Extracting alpha values from the graph...")
@@ -95,7 +117,9 @@ def process_request(origen, destination, date, time):
         edges = pd.concat([edges.drop(columns=["attributes"]), attributes_df], axis=1)
         edges.set_index(["u", "v", "key"], inplace=True)
         alpha_values = [col.split("_")[1] for col in edges.columns if col.startswith("weight_")]
+    
     else:
+        # Load the base graph and create the weighted graph
         log_message("Creating weighted graph...")
         G = load_or_build_base_graph()
         nodes, edges = get_nodes_edges(G, GRAPH_BASE_PATH)
@@ -110,19 +134,28 @@ def process_request(origen, destination, date, time):
         G_weighted, alpha_values = __import__('modules.graphs').graphs.add_weights_and_shadow_fractions_to_graph(G, edges)
         __import__('modules.graphs').graphs.save_graph(G_weighted, weighted_graph_path)
     
+    # Generate the routes
     log_message("Generating routes...")
     routes = calculate_routes(origen, destination, G_weighted, alpha_values)
+
+    # Remove repeated routes
     log_message("Removing repeated routes...")
     routes = remove_repeated_routes(routes)
     routes_coords = {}
+    
+    # Convert routes from a list of OSMID to a list of
+    # coordinates adding the real origin and destination points
     log_message("Converting routes to coordinates...")
     for alpha, route in routes.items():
         routes_coords[alpha] = route_to_list_coordinates(origen, destination, route, G_weighted)
-    log_message("Generating distances...")
+
+    # Compute the routes metrics    
+    log_message("Calculating distances...")
     routes_distances = process_routes_distances(routes, edges)
-    log_message("Generating times...")
+    log_message("Calculating times...")
     routes_times = route_time_from_distances(routes_distances, USER_SPEED)
     
+    # Load the shadows as a Geojson file
     log_message("Reading geojson file for shadows...")
     geojson_path = os.path.join(
         GEOJSON_PATH,
@@ -130,9 +163,11 @@ def process_request(origen, destination, date, time):
     )
     shadows = gpd.read_file(geojson_path)
 
+    # Geenrate the map with the routes and shadows
     log_message("Creating map with routes and shadows...")
     map_with_routes = get_all_routes_on_map(routes_coords, shadows, routes_distances)
     
+    # Save the map to the static folder
     log_message("Saving map to static folder...")
     static_folder = os.path.join(BASE_DIR, "static")
     os.makedirs(static_folder, exist_ok=True)
@@ -160,20 +195,22 @@ def index():
     if request.method == "POST":
         origen = request.form.get("origen")
         destination = request.form.get("destination")
-        date = request.form.get("date")   # formato: YYYY-MM-DD
-        time = request.form.get("time")   # formato: HH:MM
+        date = request.form.get("date")   # format: YYYY-MM-DD
+        time = request.form.get("time")   # format: HH:MM
         
-        # Iniciar la tarea pesada en un hilo en segundo plano
+        # Start the heavy task in a background thread
         thread = threading.Thread(target=process_request, args=(origen, destination, date, time))
         thread.start()
-        # Responder de inmediato para que el formulario no bloquee
-        return "Proceso iniciado", 200
+        # Respond immediately so the form does not block
+        return "Process started", 200
     else:
         static_folder = os.path.join(BASE_DIR, "static")
         os.makedirs(static_folder, exist_ok=True)
         map_html_path = os.path.join(static_folder, "map_with_routes.html")
-        # Coordenadas de Málaga
+        # Coordinates of Málaga
         malaga_coords = [36.72093, -4.42404]
+
+        # Set the default map
         default_map = folium.Map(location=malaga_coords, zoom_start=12, zoom_control="topright")
         default_map.save(map_html_path)
         return render_template("index.html", map_url=url_for('static', filename="map_with_routes.html"))
