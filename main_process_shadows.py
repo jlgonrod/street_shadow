@@ -1,14 +1,15 @@
 import os
+from glob import glob
+from os.path import basename, splitext
+import xml.etree.ElementTree as ET
+
 import numpy as np
 import pandas as pd
 import pyvista as pv
-import xml.etree.ElementTree as ET
-from os.path import splitext, basename
-from glob import glob
+from tqdm import tqdm
 
 from modules.gml_3d_viwer import load_or_process_buildings, process_footprints
 from modules.shadow import process_shadows, save_shadows_to_geojson
-from tqdm import tqdm
 
 # CONFIGURE YOUR PATHS HERE
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

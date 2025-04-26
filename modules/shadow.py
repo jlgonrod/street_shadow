@@ -1,14 +1,13 @@
-import pyvista as pv
-from shapely.geometry import Polygon, MultiPolygon, mapping
-import numpy as np
-import json
-from shapely.ops import unary_union
-from time import time
 import os
-from multiprocessing import Pool, cpu_count
-from .coordinates import convert_multipolygon_coordinates_EPSG_to_4326
-from shapely.validation import make_valid
+import json
+import numpy as np
+import pyvista as pv
 import multiprocessing as mp
+from time import time
+
+from shapely.geometry import Polygon, MultiPolygon, mapping
+from shapely.ops import unary_union
+from .coordinates import convert_multipolygon_coordinates_EPSG_to_4326
 
 def polydata_to_shapely(poly: pv.PolyData) -> MultiPolygon:
     """

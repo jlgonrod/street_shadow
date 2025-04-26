@@ -1,16 +1,13 @@
 import os
 import pickle as pkl
 from multiprocessing import Pool, cpu_count
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
-from zoneinfo import ZoneInfo
+from pvlib.solarposition import sun_rise_set_transit_ephem
 from tqdm import tqdm
 
-# Third-party packages
-from pvlib.solarposition import sun_rise_set_transit_ephem
-
-# Internal modules
 from modules.coordinates import convert_coordinates_EPSG_to_4326
 from modules.sun import get_sulight_vector
 

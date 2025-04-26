@@ -1,15 +1,16 @@
 import os
 import re
-import pandas as pd
 import pickle as pkl
-from tqdm import tqdm
-import geopandas as gpd
 
-from modules.graphs import (load_graph_pkl,
+import pandas as pd
+import geopandas as gpd
+from tqdm import tqdm
+
+from modules.graphs import (get_graph_from_osm,
+                            get_nodes_edges,
+                            load_graph_pkl,
                             process_graph_using_geojson,
-                            save_graph,
-                            get_graph_from_osm,
-                            get_nodes_edges)
+                            save_graph)
 
 # GLOBAL VARIABLES
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

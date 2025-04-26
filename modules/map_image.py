@@ -1,10 +1,11 @@
-import requests
-import re
-import os
-from PIL import Image
-import pyvista as pv
 import io
+import os
+import re
+import requests
 import numpy as np
+import pyvista as pv
+from PIL import Image
+
 from .coordinates import convert_coordinates_arrays_EPSG_to_4326, get_square_coords_from_coords
 
 BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")

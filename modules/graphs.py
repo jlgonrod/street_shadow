@@ -1,18 +1,20 @@
-from time import time
-from modules.coordinates import get_mesh_bounds_coords
-import pyvista as pv
+import os
+import json
 import pickle
-import numpy as np
-import osmnx as ox
+from time import time
+
 import folium
+import pyvista as pv
 import numpy as np
 import pandas as pd
-from shapely.geometry import Polygon,MultiPolygon, box
-from shapely.strtree import STRtree
-import branca.colormap as color_map
-import os
 import geopandas as gpd
-import json
+import osmnx as ox
+import branca.colormap as color_map
+
+from shapely.geometry import Polygon, MultiPolygon, box
+from shapely.strtree import STRtree
+
+from modules.coordinates import get_mesh_bounds_coords
 
 BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 

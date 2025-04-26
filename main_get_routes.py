@@ -1,27 +1,30 @@
 import os
+import pickle as pkl
+
+import geopandas as gpd
+import numpy as np
+import pandas as pd
 from pandas import Timestamp as pd_Timestamp
 from zoneinfo import ZoneInfo
-import pickle as pkl
-import numpy as np
-import geopandas as gpd
-import pandas as pd
 
-from modules.graphs import (get_graph_from_osm,
-                            load_graph_pkl,
-                            get_nodes_edges,
-                            apply_shadow_fractions,
-                            get_new_weights,
-                            add_weights_and_shadow_fractions_to_graph,
-                            save_graph,
-                            calculate_routes,
-                            route_to_list_coordinates,
-                            get_all_routes_on_map,
-                            save_and_format_map_html,
-                            remove_repeated_routes,
-                            process_routes_distances,
-                            route_time_from_distances)
-from modules.sun import get_sulight_vector
 from modules.coordinates import convert_coordinates_EPSG_to_4326
+from modules.graphs import (
+    add_weights_and_shadow_fractions_to_graph,
+    apply_shadow_fractions,
+    calculate_routes,
+    get_all_routes_on_map,
+    get_graph_from_osm,
+    get_new_weights,
+    get_nodes_edges,
+    load_graph_pkl,
+    process_routes_distances,
+    remove_repeated_routes,
+    route_time_from_distances,
+    route_to_list_coordinates,
+    save_and_format_map_html,
+    save_graph,
+)
+from modules.sun import get_sulight_vector
 
 # GLOBAL VARIABLES
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

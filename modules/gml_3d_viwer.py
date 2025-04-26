@@ -1,17 +1,18 @@
+import os
+import pickle as pkl
 import xml.etree.ElementTree as ET
 from os.path import basename, splitext
-import os
-import pyvista as pv
-import numpy as np
-from shapely.geometry import Polygon, MultiPolygon
-from shapely.ops import unary_union
-from tqdm import tqdm
-import pickle as pkl
 from time import time
 
+import numpy as np
+import pyvista as pv
+from shapely.geometry import MultiPolygon, Polygon
+from shapely.ops import unary_union
+from tqdm import tqdm
+
 from .map_image import draw_base_map
-from .sun import get_sulight_vector
 from .shadow import process_shadows, save_shadows_to_geojson
+from .sun import get_sulight_vector
 
 BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 
