@@ -714,9 +714,11 @@ def get_all_routes_on_map(routes_coords, shadows, route_distances):
     
     # Get the needed coordinates to load the map
     center_coords, max_lat, min_lat, max_lon, min_lon = max_min_center_coords_routes(routes_coords)
+    min_lat = min_lat - 0.002
+    min_lon = min_lon - 0.003
     
     # Create a folium map centered on the coordinates
-    map = folium.Map(location=center_coords, zoom_start=14)
+    map = folium.Map(location=center_coords, zoom_start=12, zoom_control="topright")
     map.fit_bounds([[min_lat, min_lon], [max_lat, max_lon]])
 
     # Generate a list of colors for the routes between two values interpolating len(routes_coords) colors
@@ -728,11 +730,6 @@ def get_all_routes_on_map(routes_coords, shadows, route_distances):
 
     # Ensure the routes are sorted in ascending order (most shadow first)
     routes_coords = dict(sorted(routes_coords.items(), key=lambda item: item[0], reverse=False)) 
-
-    # Add the routes to the map
-    for i, (alpha, route) in enumerate(routes_coords.items()):
-        distances = route_distances[alpha]
-        add_route_to_map(route, alpha, distances, list_colors[i], map)
 
     if shadows is not None:
         # Add the shadows to the map but cutting using the min and max lat and lon
@@ -751,6 +748,11 @@ def get_all_routes_on_map(routes_coords, shadows, route_distances):
                 "fillOpacity": 0.25
             },
         ).add_to(map)
+
+    # Add the routes to the map
+    for i, (alpha, route) in enumerate(routes_coords.items()):
+        distances = route_distances[alpha]
+        add_route_to_map(route, alpha, distances, list_colors[i], map)
 
     return map
 

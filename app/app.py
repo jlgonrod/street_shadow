@@ -8,6 +8,7 @@ from pandas import Timestamp as pd_Timestamp
 from zoneinfo import ZoneInfo
 import sys
 import folium
+import geopandas as gpd
 
 
 original_sys_path = sys.path.copy()
@@ -86,7 +87,7 @@ def index():
             print("Loading weighted graph...")
             G_weighted = load_graph_pkl(weighted_graph_path)
             # Alpha values are extracted from the weight columns
-            import geopandas as gpd
+            print("Extracting alpha values from the graph...")
             edges = G_weighted.edges(data=True, keys=True)
             edges = gpd.GeoDataFrame.from_records(
                 [(u, v, key, data) for u, v, key, data in edges],
@@ -97,7 +98,7 @@ def index():
             edges.set_index(["u", "v", "key"], inplace=True)
             alpha_values = [col.split("_")[1] for col in edges.columns if col.startswith("weight_")]
         else:
-            print("Creando grafo pesado...")
+            print("Creating weighted graph...")
             G = load_or_build_base_graph()
             nodes, edges = get_nodes_edges(G, GRAPH_BASE_PATH)
             geojson_path = os.path.join(
@@ -112,23 +113,32 @@ def index():
             __import__('modules.graphs').graphs.save_graph(G_weighted, weighted_graph_path)
         
         # Routes are calculated for each alpha value
+        print("Calculating routes...")
         routes = calculate_routes(origen, destination, G_weighted, alpha_values)
+        print("Removing repeated routes...")
         routes = remove_repeated_routes(routes)
         routes_coords = {}
+        print("Converting routes to coordinates...")
         for alpha, route in routes.items():
             routes_coords[alpha] = route_to_list_coordinates(origen, destination, route, G_weighted)
+        print("Calculating distances...")
         routes_distances = process_routes_distances(routes, edges)
+        print("Calculating times...")
         routes_times = route_time_from_distances(routes_distances, USER_SPEED)
         
         # Read the geojson file for shadows
+        print("Reading geojson file for shadows...")
         geojson_path = os.path.join(
             GEOJSON_PATH,
             f"{CITY}_{sun_vector[0]}_{sun_vector[1]}_{sun_vector[2]}.geojson"
         )
         shadows = gpd.read_file(geojson_path)
+
+        print("Creating map with routes and shadows...")
         map_with_routes = get_all_routes_on_map(routes_coords, shadows, routes_distances)
         
         # Save the map to a static folder
+        print("Saving map to static folder...")
         static_folder = os.path.join(BASE_DIR, "static")
         os.makedirs(static_folder, exist_ok=True)
         map_html_path = os.path.join(static_folder, "map_with_routes.html")
