@@ -9,58 +9,51 @@ function updateTimeInfo(selectedIndex, showAllRoutes) {
         return;
     }
 
-    // Valores de la ruta seleccionada
+    // Values of the selected route
     const shadow = routeData.time_shadow;
     const sun = routeData.time_sun;
     const total = shadow + sun;
 
-    // Usamos máximos globales siempre para mantener barras del mismo tamaño
+    // Always use global maximums to keep bars the same size
     const maxShadow = Math.max(...routeTimes.map(r => r.time_shadow));
     const maxSun = Math.max(...routeTimes.map(r => r.time_sun));
 
-    // Usar el ancho total del contenedor (la barra gris) como referencia
+    // Use the total width of the container (the gray bar) as a reference
     const timeBar = document.getElementById('timeBar');
     const totalWidth = timeBar.offsetWidth;
 
-    // Calcular el factor de escala usando los máximos globales
+    // Calculate the scaling factor using the global maximums
     const scale = totalWidth / (maxShadow + maxSun);
 
-    // El origen se ubica en el centro de la barra en función de los máximos
+    // The origin is located at the center of the bar based on the maximums
     const origin = (maxShadow / (maxShadow + maxSun)) * totalWidth;
 
     const shadowSegment = document.getElementById('timeShadowSegment');
     const sunSegment = document.getElementById('timeSunSegment');
     const divider = document.getElementById('timeDivider');
 
-    // Configurar el segmento de Sombra
+    // Configure the Shadow segment
     const shadowWidth = shadow * scale;
     shadowSegment.style.width = shadowWidth + 'px';
-    // Ubicamos su extremo derecho en el origen
+    // Position its right end at the origin
     shadowSegment.style.left = (origin - shadowWidth) + 'px';
-    shadowSegment.textContent = shadow + ' min';
+    shadowSegment.textContent = shadow ? shadow + ' min' : '';
 
-    // Configurar el segmento de Sol
+    // Configure the Sun segment
     const sunWidth = sun * scale;
     sunSegment.style.width = sunWidth + 'px';
     sunSegment.style.left = origin + 'px';
-    sunSegment.textContent = sun + ' min';
+    sunSegment.textContent = sun ? sun + ' min' : '';
 
-    // Posicionar el divisor en el origen
+    // Position the divider at the origin
     divider.style.left = origin + 'px';
     divider.style.transform = 'none';
 
-    // Mostrar el total en la parte inferior
+    // Display the total at the bottom
     const totalTimeDiv = document.getElementById('totalTime');
-    totalTimeDiv.textContent = 'Total min: ' + total;
+    totalTimeDiv.textContent = total ? 'Total min: ' + total : '';
 
     infoDiv.style.display = 'block';
-}
-
-function hideTimeInfo() {
-    const infoDiv = document.getElementById('timeInfo');
-    if (infoDiv) {
-        infoDiv.style.display = 'none';
-    }
 }
 
 function hideTimeInfo() {

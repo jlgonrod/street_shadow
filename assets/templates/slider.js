@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     const slider = document.getElementById('routeSlider');
-    // Si solo hay una ruta (max ≤ 1) se reemplaza el slider y el checkbox "Show All Routes"
+    // If there is only one route (max ≤ 1), replace the slider and the "Show All Routes" checkbox
     if (slider && parseInt(slider.getAttribute('max')) <= 1) {
         const sliderContainer = document.getElementById('sliderContainer');
         sliderContainer.innerHTML = `
@@ -9,27 +9,27 @@ document.addEventListener('DOMContentLoaded', function() {
             <input type="checkbox" id="toggleShadow" checked onchange="updateRoutes()">
             <label for="toggleShadow">Show Shadows</label>
         `;
-        // Actualizamos las rutas, forzando showAllRoutes como false
+        // Update routes, forcing showAllRoutes to false
         updateRoutes();
     }
 });
 
 function updateRoutes() {
     const slider = document.getElementById('routeSlider');
-    // Si no existe el checkbox "showAllRoutes", se simula que está desactivado (false)
+    // If the "showAllRoutes" checkbox does not exist, simulate it as unchecked (false)
     let showAll = document.getElementById('showAllRoutes');
     if (!showAll) {
         showAll = { checked: false };
     }
     const toggleShadow = document.getElementById('toggleShadow');
-    // Si el slider no existe (ruta única), se usa 0 por defecto
+    // If the slider does not exist (single route), use 0 by default
     const selectedRoute = slider ? slider.value : 0;
-    // Obtiene todos los elementos path del mapa
+    // Get all path elements from the map
     const paths = document.querySelectorAll('path');
     let routeIndex = 0;
     paths.forEach(path => {
         const stroke = path.getAttribute('stroke');
-        // Si el path es una ruta (stroke distinto de negro)
+        // If the path is a route (stroke is not black)
         if (stroke && stroke.toLowerCase() !== '#000000' && stroke.toLowerCase() !== 'black') {
             if (showAll.checked) {
                 path.style.display = '';
@@ -38,17 +38,17 @@ function updateRoutes() {
             }
             routeIndex++;
         } else {
-            // Para sombras (stroke negro), se verifica el estado del checkbox de sombras
+            // For shadows (black stroke), check the state of the shadow checkbox
             path.style.display = toggleShadow.checked ? '' : 'none';
         }
     });
     if (!showAll.checked) {
-        // Forzamos que se muestre el contenedor de información para que se calcule el offsetWidth correctamente
+        // Force the info container to be displayed so its offsetWidth is calculated correctly
         const infoDiv = document.getElementById('timeInfo');
         if (infoDiv) {
             infoDiv.style.display = 'block';
         }
-        // Actualiza la información en el siguiente frame para garantizar que el layout esté actualizado
+        // Update the information in the next frame to ensure the layout is updated
         window.requestAnimationFrame(() => {
             updateTimeInfo(selectedRoute, showAll.checked);
         });
@@ -58,7 +58,7 @@ function updateRoutes() {
 }
 
 function sliderChanged() {
-    // Al cambiar el slider se desactiva "Show All Routes", si este existe
+    // When the slider changes, deactivate "Show All Routes" if it exists
     const showAllEl = document.getElementById('showAllRoutes');
     if (showAllEl) {
        showAllEl.checked = false;
