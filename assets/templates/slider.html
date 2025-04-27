@@ -1,4 +1,4 @@
-<div style="
+<div id="sliderContainer" style="
         position: fixed;
         bottom: 50px;
         left: 10px;
@@ -11,6 +11,7 @@
     <label for="routeSlider">Select Route:</label>
     <div style="display: flex; align-items: center;">
         <img src="assets/svg/slider_shadow.svg" alt="Shadow" style="width: 24px; height: 24px; margin-right: 10px;">
+        <!-- {len_routes} is expected to be replaced with the number of available routes -->
         <input type="range" id="routeSlider" min="0" max="{len_routes}" value="0" oninput="sliderChanged()" style="flex-grow: 1;">
         <img src="assets/svg/slider_sun.svg" alt="Sun" style="width: 24px; height: 24px; margin-left: 10px;">
     </div>
@@ -21,4 +22,3 @@
     <input type="checkbox" id="toggleShadow" checked onchange="updateRoutes()">
     <label for="toggleShadow">Show Shadows</label>
 </div>
-  
