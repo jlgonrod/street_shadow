@@ -130,7 +130,11 @@ def process_request(origen, destination, date, time):
             GEOJSON_PATH,
             f"{CITY}_{sun_vector[0]}_{sun_vector[1]}_{sun_vector[2]}.geojson"
         )
-        geojson_shadows = gpd.read_file(geojson_path)
+        try:
+            geojson_shadows = gpd.read_file(geojson_path)
+        except Exception as e:
+            log_message("Shadow data not available for the selected time. For this demo, data has only been calculated from 01/06/2025 to 01/06/2025 with a resolution of 5 minutes. Please try a search within this range.")
+            return
         log_message("Applying shadow fractions and weights to edges...")
         edges["shadow_fraction"] = __import__('modules.graphs').graphs.apply_shadow_fractions(geojson_shadows, edges["geometry"])
         edges = __import__('modules.graphs').graphs.get_new_weights(edges, 0.1)
