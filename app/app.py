@@ -26,7 +26,7 @@ from modules.graphs import (
     get_all_routes_on_map,
     save_and_format_map_html
 )
-from modules.sun import get_sulight_vector
+from modules.sun import get_sulight_vector, get_existing_sun_vector
 from modules.coordinates import convert_coordinates_EPSG_to_4326
 sys.path = original_sys_path
 
@@ -99,6 +99,9 @@ def process_request(origen, destination, date, time):
 
     # Get the sun vector for the given coordinates and datetime
     sun_vector = get_sulight_vector(x, y, dt, "EPSG:4326", convert_coords=False)
+
+    # Ensure the sun vector matches an existing one or find a similar precomputed vector
+    sun_vector = get_existing_sun_vector(sun_vector, GEOJSON_PATH, max_mse_allowed=0.01)
     
     # Get the name of the weighted graph based on the sun vector and load it
     weighted_graph_path = GRAPH_BASE_PATH.replace("_base.pkl", f"_{sun_vector[0]}_{sun_vector[1]}_{sun_vector[2]}.pkl")

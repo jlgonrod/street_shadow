@@ -24,7 +24,7 @@ from modules.graphs import (
     save_and_format_map_html,
     save_graph,
 )
-from modules.sun import get_sulight_vector
+from modules.sun import get_sulight_vector, get_existing_sun_vector
 
 # GLOBAL VARIABLES
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -37,7 +37,7 @@ EPSG_SOURCE = "EPSG:25830"
 filename = f"graph_base.pkl"
 POLYGON_QUERY_GRAPH_PATH = os.path.join(BASE_DIR, "data", "osmnx", CITY, f"{CITY}_polygon_geometry_to_query_graph.pkl")
 GRAPH_BASE_PATH = os.path.join(BASE_DIR, "data", "osmnx", CITY, filename)
-DATETIME = "2025-06-01 18:05:00"
+DATETIME = "2025-06-01 18:07:00"
 USER_SPEED = 4.7 #km/h
 
 # FUNCTIONS
@@ -85,6 +85,9 @@ if __name__ == "__main__":
 
     sun_vector = get_sulight_vector(x, y, dt, "EPSG:4326", convert_coords=False) # Coordinates already in EPSG:4326
 
+    # Ensure the sun vector matches an existing one or find a similar precomputed vector
+    sun_vector = get_existing_sun_vector(sun_vector, GEOJSON_PATH, max_mse_allowed=0.0025)
+
     # Check if the weighted graph already exists
     weighted_graph_path = GRAPH_BASE_PATH.replace("_base.pkl", f"_{sun_vector[0]}_{sun_vector[1]}_{sun_vector[2]}.pkl")
     
@@ -110,7 +113,7 @@ if __name__ == "__main__":
 
         
         alpha_values = [col.split("_")[1] for col in edges.columns if col.startswith("weight_")]
-        
+
     else:
         print("Weighted graph does not exist, creating it...")
         # Load the base graph
