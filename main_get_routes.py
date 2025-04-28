@@ -97,7 +97,6 @@ if __name__ == "__main__":
 
         # Get the alpha values from the graph
         edges = G_weighted.edges(data=True, keys=True)
-        # Convert to geodataframe
         # Convert edges to a GeoDataFrame
         edges = gpd.GeoDataFrame.from_records(
             [(u, v, key, data) for u, v, key, data in edges],

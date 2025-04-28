@@ -103,6 +103,15 @@ def process_request(origen, destination, date, time):
     # Ensure the sun vector matches an existing one or find a similar precomputed vector
     sun_vector = get_existing_sun_vector(sun_vector, GEOJSON_PATH, max_mse_allowed=0.01)
     
+    # Check if the sun is below the horizon
+    if sun_vector[2] >= 0:
+        if dt.hour < 12:
+            log_message("The sun is below the horizon. Please select a time after sunrise.")
+            raise ValueError("Invalid sun position: below the horizon.")
+        if dt.hour > 12:
+            log_message("The sun is below the horizon. Please select a time before sunset.")
+            raise ValueError("Invalid sun position: below the horizon.")
+
     # Get the name of the weighted graph based on the sun vector and load it
     weighted_graph_path = GRAPH_BASE_PATH.replace("_base.pkl", f"_{sun_vector[0]}_{sun_vector[1]}_{sun_vector[2]}.pkl")
     
