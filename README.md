@@ -40,13 +40,8 @@ This flexible approach enables users to customize their routes based on their de
 </div>
 
 ## Demo
-Here is a short demo showing how Street Shadow works:
-
-<div align="center">
-    <video controls style="max-width: 100%; width: 60%">
-        <source src="assets/readme_media/demo_app.mp4" type="video/mp4">
-    </video>
-</div>
+Here is a short demo showing how Street Shadow works:  
+[View demo App](https://vimeo.com/1080136787)
 
 ## Requirements
 - Python (version 3.11.9 was used during development; other versions have not been tested)
