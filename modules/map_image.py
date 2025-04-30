@@ -71,7 +71,7 @@ def get_query_static_image(lon1, lat1, lon2, lat2):
     lon_min, lat_min, lon_max, lat_max = get_min_max_coords(lon1, lat1, lon2, lat2)
 
     username_style = "mapbox" # The username that owns the style
-    token = "pk.eyJ1Ijoiamxnb25yb2QiLCJhIjoiY203c3hjMmhvMWNvdjJqc2Rudm90OWhpOCJ9.-4kBagshD5htWXB7xadG2A"
+    token = "<YOUR_MAPBOX_ACCESS_TOKEN>" # The Mapbox access token (https://console.mapbox.com/account/access-tokens/)
     style_id = "streets-v12"
     overlay = ""
     bbox = f"[{lon_min},{lat_min},{lon_max},{lat_max}]"

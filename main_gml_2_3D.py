@@ -12,7 +12,7 @@ if __name__ == "__main__":
     # GML_FILE_PATH = f"./data/gml/buildings/Building_{ref}.gml"
 
     # Get the GML file path for a town
-    name = "beas"
+    name = "malaga"
     GML_FILE_PATH = os.path.join(BASE_DIR, "data", "gml", "towns", f"{name}.gml")
 
     # Set the datetime to calculate the shadows based on the sun position
