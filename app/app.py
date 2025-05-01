@@ -106,10 +106,10 @@ def process_request(origen, destination, date, time):
     # Check if the sun is below the horizon
     if sun_vector[2] >= 0:
         if dt.hour < 12:
-            log_message("The sun is below the horizon. Please select a time after sunrise.")
+            log_message("Error: The sun is below the horizon. Please select a time after sunrise.")
             raise ValueError("Invalid sun position: below the horizon.")
         if dt.hour > 12:
-            log_message("The sun is below the horizon. Please select a time before sunset.")
+            log_message("Error: The sun is below the horizon. Please select a time before sunset.")
             raise ValueError("Invalid sun position: below the horizon.")
 
     # Get the name of the weighted graph based on the sun vector and load it
@@ -152,7 +152,13 @@ def process_request(origen, destination, date, time):
     
     # Generate the routes
     log_message("Generating routes...")
-    routes = calculate_routes(origen, destination, G_weighted, alpha_values)
+    try:
+        routes = calculate_routes(origen, destination, G_weighted, alpha_values)
+    except Exception as e:
+        error_msg = str(e)
+        error_msg = error_msg + " Please check the input addresses and try again."
+        log_message(f"Error: {error_msg}")
+        raise ValueError(f"Error: {error_msg}")
 
     # Remove repeated routes
     log_message("Removing repeated routes...")
