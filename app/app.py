@@ -10,6 +10,7 @@ import sys
 import folium
 import threading
 import queue
+import time
 
 original_sys_path = sys.path.copy()
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -72,7 +73,7 @@ def load_or_build_base_graph():
         graph = get_graph_from_osm(GRAPH_BASE_PATH, polygon, MESH_PATH, EPSG_SOURCE)
     return graph
 
-def process_request(origen, destination, date, time):
+def process_request(origen, destination, date, time_str, measure_time=False):
     """
     Process the request to calculate routes and generate a map.
     
@@ -84,11 +85,17 @@ def process_request(origen, destination, date, time):
         Destination address in as a string.
     date : str
         Date in the format YYYY-MM-DD.
-    time : str
+    time_str : str
         Time in the format HH:MM.
+    measure_time : bool
+        If True, measure the time taken to process the request.
     """
 
-    dt_str = f"{date} {time}:00"
+    timings = {}
+    if measure_time:
+        timings["t00_start"] = time.time()
+
+    dt_str = f"{date} {time_str}:00"
     dt = pd_Timestamp(dt_str).tz_localize(ZoneInfo("Europe/Madrid"))
     
     # Load all coordinates from the pickle file to get the center
@@ -97,11 +104,18 @@ def process_request(origen, destination, date, time):
     x, y = np.mean(all_coords, axis=0) if all_coords else (0, 0)
     x, y = convert_coordinates_EPSG_to_4326(x, y, EPSG_SOURCE)
 
+    if measure_time:
+        timings["t01_load_coords"] = time.time()
+
     # Get the sun vector for the given coordinates and datetime
     sun_vector = get_sulight_vector(x, y, dt, "EPSG:4326", convert_coords=False)
+    if measure_time:
+        timings["t02_get_sun_vector"] = time.time()
 
     # Ensure the sun vector matches an existing one or find a similar precomputed vector
     sun_vector = get_existing_sun_vector(sun_vector, GEOJSON_PATH, max_mse_allowed=0.01)
+    if measure_time:
+        timings["t03_get_existing_sun_vector"] = time.time()
     
     # Check if the sun is below the horizon
     if sun_vector[2] >= 0:
@@ -150,6 +164,9 @@ def process_request(origen, destination, date, time):
         G_weighted, alpha_values = __import__('modules.graphs').graphs.add_weights_and_shadow_fractions_to_graph(G, edges)
         __import__('modules.graphs').graphs.save_graph(G_weighted, weighted_graph_path)
     
+    if measure_time:
+        timings["t04_load_weighted_graph"] = time.time()
+
     # Generate the routes
     log_message("Generating routes...")
     try:
@@ -160,10 +177,16 @@ def process_request(origen, destination, date, time):
         log_message(f"Error: {error_msg}")
         raise ValueError(f"Error: {error_msg}")
 
+    if measure_time:
+        timings["t05_calculate_routes"] = time.time()
+
     # Remove repeated routes
     log_message("Removing repeated routes...")
     routes = remove_repeated_routes(routes)
     routes_coords = {}
+
+    if measure_time:
+        timings["t06_remove_repeated_routes"] = time.time()
     
     # Convert routes from a list of OSMID to a list of
     # coordinates adding the real origin and destination points
@@ -171,11 +194,16 @@ def process_request(origen, destination, date, time):
     for alpha, route in routes.items():
         routes_coords[alpha] = route_to_list_coordinates(origen, destination, route, G_weighted)
 
+    if measure_time:
+        timings["t07_convert_routes_to_coordinates"] = time.time()
+
     # Compute the routes metrics    
     log_message("Calculating distances...")
     routes_distances = process_routes_distances(routes, edges)
     log_message("Calculating times...")
     routes_times = route_time_from_distances(routes_distances, USER_SPEED)
+    if measure_time:
+        timings["t08_calculate_routes_metrics"] = time.time()
     
     # Load the shadows as a Geojson file
     log_message("Reading geojson file for shadows...")
@@ -184,6 +212,9 @@ def process_request(origen, destination, date, time):
         f"{CITY}_{sun_vector[0]}_{sun_vector[1]}_{sun_vector[2]}.geojson"
     )
     shadows = gpd.read_file(geojson_path)
+
+    if measure_time:
+        timings["t09_load_shadows"] = time.time()
 
     # Geenrate the map with the routes and shadows
     log_message("Creating map with routes and shadows...")
@@ -201,8 +232,16 @@ def process_request(origen, destination, date, time):
     modified_content = content.replace('assets/', '/assets/')
     with open(map_html_path, "w", encoding="utf-8") as f:
         f.write(modified_content)
+
+    if measure_time:
+        timings["t10_render_map"] = time.time()
     
     log_message("Process completed.")
+
+    if measure_time:
+        return timings
+    else:
+        return None
 
 @app.route("/progress")
 def progress():

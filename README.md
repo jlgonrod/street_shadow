@@ -63,6 +63,7 @@ Here is a short demo showing how Street Shadow works:
 - **`modules/`**: Houses Python modules for solar calculations, shadow projections, routing, and visualization.
 - **`data/`**(Not include in the repository): Stores raw and processed data, including GML files, graphs (routes), GeoJSON files (shadows), sun vectors, and more.
 - **`output_examples/`**: Contains an HTML sample showcasing a set of generated routes.
+- **`benchmarking/`**: Contains an analysis of 250 routes calculation.
 
 The main scrips are found in the root folder:
 - **`main_get_all_vectors.py`**: Calculates solar vectors over a specified time range.
